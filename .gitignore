@@ -1,0 +1,15 @@
+node_modules/
+.venv/
+__pycache__/
+*.pyc
+dist/
+.local/
+work/
+*.db
+*.db-wal
+*.db-shm
+*.log
+.env
+.env.*
+!.env.example
+*.inspect.ndjson
