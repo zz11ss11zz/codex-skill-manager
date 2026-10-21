@@ -62,4 +62,6 @@ npm start
 
 见 [开发路线](docs/ROADMAP.md) 和 [验收记录](docs/VALIDATION.md)。安装命令将在真实验证后补充，不提供未验证的一键安装说明。
 
+开发者可按 [本地侧栏验证步骤](docs/LOCAL_SETUP.md) 注册 MCP 原型。注册已经验证，实际侧栏 UI 仍待宿主重启后验收。
+
 官方 UI 协议参考：[Plugin Extensions](https://developers.openai.com/plugins/build/extensions)。声明 global 入口不等于宿主一定默认显示；实际兼容性以验收记录为准。
