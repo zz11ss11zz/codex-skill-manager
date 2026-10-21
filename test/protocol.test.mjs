@@ -3,10 +3,18 @@ import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
+import { mkdtemp, mkdir, writeFile, rm } from 'node:fs/promises';
+import os from 'node:os';
+import path from 'node:path';
 
-test('stdio handshake, global discovery, resource and synthetic tool result', { timeout: 15000 }, async () => {
+test('stdio handshake, global discovery, resource and isolated inventory result', { timeout: 15000 }, async () => {
+  const root = await mkdtemp(path.join(os.tmpdir(), 'manager-protocol-'));
+  await mkdir(path.join(root, 'skills', 'example'), { recursive: true });
+  await writeFile(path.join(root, 'skills', 'example', 'SKILL.md'), '---\nname: example\ndescription: synthetic test fixture\n---\n');
+  const roots = { skills: path.join(root, 'skills'), cache: path.join(root, 'cache') };
   const client = new Client({ name: 'protocol-test', version: '1.0.0' });
-  const transport = new StdioClientTransport({ command: process.execPath, args: [fileURLToPath(new URL('../src/server.mjs', import.meta.url))], stderr: 'pipe' });
+  const code = `import {createServer} from ${JSON.stringify(new URL('../src/server.mjs', import.meta.url).href)}; import {StdioServerTransport} from '@modelcontextprotocol/sdk/server/stdio.js'; await createServer(${JSON.stringify(roots)}).connect(new StdioServerTransport());`;
+  const transport = new StdioClientTransport({ command: process.execPath, args: ['--input-type=module', '-e', code], cwd: fileURLToPath(new URL('..', import.meta.url)), stderr: 'pipe' });
   try {
     await client.connect(transport);
     const { tools } = await client.listTools();
@@ -15,15 +23,16 @@ test('stdio handshake, global discovery, resource and synthetic tool result', { 
     const uri = tools[0]._meta.ui.resourceUri;
     const { contents } = await client.readResource({ uri });
     assert.equal(contents[0].mimeType, 'text/html;profile=mcp-app');
-    assert.match(contents[0].text, /合成示例/);
+    assert.match(contents[0].text, /只读清单/);
     assert.ok(!contents[0].text.includes('/* APP_BUNDLE */'));
     const result = await client.callTool({ name: 'open_skill_manager', arguments: {} });
     assert.equal(result.isError, undefined);
-    assert.equal(result.structuredContent.mode, 'synthetic');
-    assert.equal(result.structuredContent.coverage, null);
-    assert.equal(result.structuredContent.skills.length, 2);
+    assert.equal(result.structuredContent.mode, 'inventory');
+    assert.equal(result.structuredContent.usage, null);
+    assert.equal(result.structuredContent.skills.length, 1);
+    assert.equal(result.structuredContent.skills[0].name, 'example');
     await assert.rejects(client.readResource({ uri: 'file:///private.txt' }));
     const missing = await client.callTool({ name: 'delete_skill', arguments: {} });
     assert.equal(missing.isError, true);
-  } finally { await client.close(); }
+  } finally { await client.close(); await rm(root, { recursive: true, force: true }); }
 });

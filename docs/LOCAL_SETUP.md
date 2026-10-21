@@ -15,7 +15,7 @@ codex mcp add codex-skill-manager -- $nodeExecutable $managerEntry
 codex mcp get codex-skill-manager
 ```
 
-不要删除或移动此工作目录；配置引用其中的服务和构建产物。原型仅返回合成数据，不扫描技能、会话或凭据，不需要 API 密钥。
+不要删除或移动此工作目录；配置引用其中的服务和构建产物。原型只读扫描技能元数据和插件 manifest，不读取会话或凭据，不需要 API 密钥。更新服务代码后需要重新加载 MCP 服务；可通过退出并重开桌面应用完成。
 
 ## 宿主验收
 

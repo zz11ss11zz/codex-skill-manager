@@ -2,7 +2,7 @@
 
 在 Codex 中查看本机插件与 Skill 清单、使用证据及整理建议。
 
-**开发中。尚未发布可用版本；侧栏入口尚待端到端验收。** 本项目不是 OpenAI 官方产品。
+**开发中。侧栏示例入口已由用户验证，真实清单正在集成；尚未发布稳定版本。** 本项目不是 OpenAI 官方产品。
 
 ## 为什么开发
 
@@ -36,8 +36,8 @@
 
 | 阶段 | 状态 |
 | --- | --- |
-| A：侧栏入口原型及宿主验收 | 开发中 |
-| B：只读清单和归属 | 待开发 |
+| A：侧栏入口原型及宿主验收 | 入口和示例显示已验证；固定、再次重启与卸载待验 |
+| B：只读清单和归属 | 扫描器与协议测试通过；真实清单 UI 待验 |
 | C：使用记录和统计 | 待开发 |
 | D：整理建议及可回退管理 | 待开发 |
 | E：Windows 安装、升级和卸载 | 待开发 |
@@ -56,12 +56,14 @@ npm test
 npm start
 ```
 
-`npm test` 构建 UI 并进行真实 stdio MCP 集成测试。`npm start` 运行等待 MCP 客户端连接的进程，不会打开网页。当前只提供合成数据；不读取本机技能或聊天。构建后的 UI 通过 `ui://codex-skill-manager/dashboard.html` 资源提供，入口工具为 `open_skill_manager`。
+`npm test` 构建 UI 并使用合成临时目录进行扫描器和 stdio MCP 集成测试。`npm start` 运行等待 MCP 客户端连接的进程，不会打开网页。工具调用时只读扫描用户、系统技能目录与插件缓存中的技能元数据；不读取聊天或凭据。构建后的 UI 通过 `ui://codex-skill-manager/dashboard.html` 资源提供，入口工具为 `open_skill_manager`。
+
+当前按文件实例计数；保留同名和相同内容副本，不宣称它们是不同逻辑技能。插件缓存仅显示为候选，不能据此判断安装/启用状态。扫描范围与失败项均在界面中可查，符号链接跳过，使用统计暂未启用。默认扫描 `CODEX_HOME/skills`（未设置时为 `~/.codex/skills`）、`~/.agents/skills` 和 `CODEX_HOME/plugins/cache`。
 
 原型使用维护中的 MCP SDK v1 与匹配的 MCP Apps SDK v1，锁定依赖版本。Node.js 避免首个侧栏验证引入额外 Python 环境；持久化与数据库选择留到真实数据阶段。宿主安装配置和插件包尚待实测，不应把协议测试通过当成可安装发布版。
 
 见 [开发路线](docs/ROADMAP.md) 和 [验收记录](docs/VALIDATION.md)。安装命令将在真实验证后补充，不提供未验证的一键安装说明。
 
-开发者可按 [本地侧栏验证步骤](docs/LOCAL_SETUP.md) 注册 MCP 原型。注册已经验证，实际侧栏 UI 仍待宿主重启后验收。
+开发者可按 [本地侧栏验证步骤](docs/LOCAL_SETUP.md) 注册 MCP 原型。示例入口已验证，更新后的清单 UI 仍需重新加载服务后验收。
 
 官方 UI 协议参考：[Plugin Extensions](https://developers.openai.com/plugins/build/extensions)。声明 global 入口不等于宿主一定默认显示；实际兼容性以验收记录为准。
