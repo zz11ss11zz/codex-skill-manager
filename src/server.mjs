@@ -4,8 +4,9 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { pathToFileURL } from 'node:url';
 import { scanInventory } from './inventory.mjs';
+import { loadPluginStatus, applyPluginStatus } from './plugins.mjs';
 
-export function createServer(roots) {
+export function createServer(roots, { queryPlugins = loadPluginStatus } = {}) {
 // Resource identity follows its content so hosts cannot reuse a previous UI build.
 // Keep the content immutable for the lifetime of this server instance.
 const html = readFileSync(new URL('../dist/dashboard.html', import.meta.url), 'utf8');
@@ -24,6 +25,20 @@ server.registerTool('open_skill_manager', {
 }, async () => {
   const inventory = await scanInventory(roots);
   return { content: [{ type: 'text', text: `发现 ${inventory.skills.length} 个技能文件实例；${inventory.issues.length} 个扫描问题。启用状态与使用统计尚未核实。` }], structuredContent: inventory };
+});
+server.registerTool('check_plugin_status', {
+  title: '核对插件安装状态',
+  description: '显式调用官方 codex plugin list --json 核对插件安装版本和启用状态；CLI 可能查询已配置的插件市场。不上传技能文件或聊天。',
+  inputSchema: {},
+  annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: true },
+}, async () => {
+  try {
+    const status = await queryPlugins();
+    const inventory = applyPluginStatus(await scanInventory(roots), status);
+    return { content: [{ type: 'text', text: `已读取 ${status.plugins.length} 条插件安装记录；未匹配缓存不等于未安装。` }], structuredContent: inventory };
+  } catch {
+    return { isError: true, content: [{ type: 'text', text: '无法读取插件安装清单。请检查 Codex CLI 是否可用、登录环境和网络；保留现有清单，不推断安装状态。' }] };
+  }
 });
 return server;
 }

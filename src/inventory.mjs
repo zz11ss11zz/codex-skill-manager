@@ -101,7 +101,7 @@ export async function scanInventory(roots = defaultRoots()) {
           if (typeof location !== 'string') { issue(manifestPath, '不支持的 skills 字段'); continue; }
           const root = path.resolve(versionPath, location);
           if (!inside(versionPath, root)) { issue(manifestPath, 'skills 路径超出插件目录'); continue; }
-          await skillRoot(root, '插件缓存技能', { name: typeof manifest.name === 'string' ? manifest.name : plugin.name, marketplace: market.name, version: version.name, manifest: manifestPath });
+          await skillRoot(root, '插件缓存技能', { name: typeof manifest.name === 'string' ? manifest.name : plugin.name, directory: plugin.name, marketplace: market.name, version: version.name, manifest: manifestPath });
         }
       }
     }
