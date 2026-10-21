@@ -90,3 +90,29 @@ test('bounded imports continue across files and an existing lock is not removed'
     assert.equal(await readFile(`${stateFile}.lock`, 'utf8'), 'other importer');
   } finally { await rm(root, { recursive: true, force: true }); }
 });
+
+test('v1 index is backed up and reparsed instead of retaining false review signals', async () => {
+  const root = await mkdtemp(path.join(os.tmpdir(), 'usage-migrate-'));
+  const logs=path.join(root,'logs'), stateFile=path.join(root,'index.json');
+  try {
+    await mkdir(logs);
+    const file=path.join(logs,'review.jsonl');
+    await writeFile(file, JSON.stringify({type:'session_meta',payload:{id:'review',source:{subagent:{other:'guardian'}}}})+'\n'+row('one')+'\n');
+    const old=(await readUsageFile(file)).state;
+    old.events=[{key:'old',kind:'explicit-marker',reference:'wrong',source:file,line:2}];
+    delete old.parser.excludedSession;
+    await writeFile(stateFile,JSON.stringify({version:1,files:{[file]:old}}));
+    const result=await new UsageIndex({roots:[logs],stateFile}).refresh(skills);
+    assert.equal(result.counts['explicit-marker'].events,0);
+    assert.equal(result.coverage.rebuiltForParser,true);
+    assert.equal(result.coverage.excludedSessionFiles,1);
+    const files=await (await import('node:fs/promises')).readdir(root);
+    const backup=files.find(f=>f.startsWith('index.json.v1-'));
+    assert.ok(backup);
+    assert.ok((await readFile(path.join(root,backup),'utf8')).includes('wrong'));
+    const next=await new UsageIndex({roots:[logs],stateFile}).refresh(skills);
+    assert.equal(next.coverage.rebuiltForParser,false);
+    assert.equal(next.coverage.bytesRead,0);
+    assert.equal(next.counts['explicit-marker'].events,0);
+  } finally { await rm(root,{recursive:true,force:true}); }
+});

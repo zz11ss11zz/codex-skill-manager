@@ -63,3 +63,20 @@ test('ambiguous and unknown references are preserved; intent and inferred reques
   assert.equal(result.counts['explicit-marker'].resolvedInstances, 1);
   assert.equal(result.counts['read-request'].resolvedInstances, 1);
 });
+
+test('generated review sessions and shell syntax do not become human invocation signals', () => {
+  const p = parser();
+  p.accept({type:'session_meta', payload:{id:'review',source:{subagent:{other:'guardian'}}}}, 'log', 1);
+  assert.deepEqual(p.accept(message('review', '$demo $env:PATH $reportText.Replace'), 'log', 2), []);
+  assert.deepEqual(p.accept(read('review-read', 'cat /skills/demo/SKILL.md'), 'log', 3), []);
+  const restored = new UsageParser();
+  Object.assign(restored, {excludedSession:p.excludedSession});
+  assert.deepEqual(restored.accept(message('next', '$demo'), 'log', 4), []);
+  const human = parser();
+  const text = 'Use $demo. $plugin:tool $env:PATH $false $reportText.Replace $f.json $x = 1; $reportText=2';
+  assert.deepEqual(human.accept(message('human',text),'log',5).map(e=>e.reference), ['demo','plugin:tool']);
+  const review = message('wrapped','The following is the Codex agent history whose request action you are assessing.');
+  review.payload.content.push({type:'input_text',text:'tool: $demo'});
+  assert.deepEqual(human.accept(review,'log',6), []);
+  assert.deepEqual(human.accept(message('context','<codex_internal_context>$demo</codex_internal_context>'),'log',7), []);
+});

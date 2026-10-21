@@ -69,7 +69,7 @@ export async function readUsageFile(file, previous = null, { maxBytes = BUDGET, 
     }
     const after = await handle.stat();
     if (after.size < initial.size || (after.size === initial.size && after.mtimeMs !== initial.mtimeMs)) throw new Error('读取期间日志发生替换，请重试');
-    state.parser = { session: parser.session, turn: parser.turn, cwd: parser.cwd };
+    state.parser = { session: parser.session, turn: parser.turn, cwd: parser.cwd, excludedSession: parser.excludedSession };
     state.fileIdentity = identity(initial);
     state.observedSize = initial.size;
     state.mtimeMs = initial.mtimeMs;
@@ -119,14 +119,19 @@ export class UsageIndex {
     try { lock = await open(lockFile, 'wx'); } catch (error) { if (error.code === 'EEXIST') throw new Error('已有导入占用本地索引；若上次异常退出，请确认没有导入进程后移除锁文件'); throw error; }
     const temporary = `${stateFile}.${randomUUID()}.tmp`;
     try {
-      let snapshot = { version: 1, files: {} };
+      let snapshot = { version: 2, files: {} }, rebuiltForParser = false;
       try {
         const info = await lstat(stateFile);
         if (!info.isFile() || info.isSymbolicLink() || info.size > 64 * 1024 * 1024) throw new Error('本地索引类型或大小无效');
         snapshot = JSON.parse(await readFile(stateFile, 'utf8'));
-        if (snapshot.version !== 1 || !snapshot.files || typeof snapshot.files !== 'object') throw new Error('索引格式不受支持');
+        if (![1, 2].includes(snapshot.version) || !snapshot.files || typeof snapshot.files !== 'object') throw new Error('索引格式不受支持');
         for (const [file, s] of Object.entries(snapshot.files)) if (s.path !== file || !Number.isSafeInteger(s.offset) || s.offset < 0 || !Array.isArray(s.events) || !s.parser || !Number.isSafeInteger(s.prefixLength) || !Number.isSafeInteger(s.anchorStart) || s.anchorStart < 0 || s.anchorStart > s.offset || s.offset - s.anchorStart > 4096 || s.prefixLength < 0 || s.prefixLength > 4096) throw new Error('本地索引损坏，请保留文件后重新建立索引');
       } catch (error) { if (error.code !== 'ENOENT') throw error; }
+      if (snapshot.version === 1) {
+        await writeFile(`${stateFile}.v1-${randomUUID()}.bak`, JSON.stringify(snapshot), { flag: 'wx', mode: 0o600 });
+        snapshot = { version: 2, files: {} };
+        rebuiltForParser = true;
+      }
       const discovered = await discover(roots), next = {}, issues = [...discovered.issues];
       let budget = this.options.maxBytes || BUDGET, bytesRead = 0, resets = 0;
       const maxLineBytes = this.options.maxLineBytes || MAX_LINE;
@@ -147,7 +152,9 @@ export class UsageIndex {
       const last = states.map(s => s.lastTimestamp).filter(Boolean).sort();
       const pendingBytes = discovered.files.reduce((sum, f) => sum + Math.max(0, f.size - (next[f.path]?.offset || 0)), 0);
       const coverage = { checkedAt: new Date().toISOString(), roots, discoveredFiles: discovered.files.length, indexedFiles: states.length, bytesRead, pendingBytes, records: states.reduce((n, s) => n + s.records, 0), malformedLines: states.reduce((n, s) => n + s.malformed, 0), oversizedLines: states.reduce((n, s) => n + s.oversized, 0), from: first[0] || null, to: last.at(-1) || null, resets, issues };
-      const serialized = JSON.stringify({ version: 1, files: next });
+      coverage.rebuiltForParser = rebuiltForParser;
+      coverage.excludedSessionFiles = states.filter(s => s.parser.excludedSession).length;
+      const serialized = JSON.stringify({ version: 2, files: next });
       if (Buffer.byteLength(serialized) > 64 * 1024 * 1024) throw new Error('本地索引达到 64 MiB 限制，保留此前索引');
       await writeFile(temporary, serialized, { flag: 'wx', mode: 0o600 });
       await rename(temporary, stateFile);

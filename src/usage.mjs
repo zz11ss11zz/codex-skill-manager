@@ -68,17 +68,19 @@ export function skillReadPaths(command, cwd) {
 }
 
 function markers(text) {
+  if (/^\s*<(?:environment_context|codex_internal_context|send_user_message_question_reply|permissions instructions)\b/.test(text) || text.startsWith('The following is the Codex agent history whose request action you are assessing.')) return [];
   // Quoted examples are not invocation evidence. Plain markers still indicate intent only.
   const plain = text.replace(/```[\s\S]*?(?:```|$)/g, '').replace(/~~~[\s\S]*?(?:~~~|$)/g, '').replace(/`[^`]*`/g, '').replace(/^\s*>.*$/gm, '');
-  return [...new Set([...plain.matchAll(/(?:^|[^\w$])\$([A-Za-z][A-Za-z0-9_.:-]{0,127})(?![A-Za-z0-9_.:-])/g)].map(m => m[1].replace(/[.:]+$/, '')))];
+  return [...new Set([...plain.matchAll(/(?:^|[^\w$\\])\$([A-Za-z][A-Za-z0-9_-]*(?::[A-Za-z][A-Za-z0-9_-]*)?)(?![A-Za-z0-9_:-]|\.[A-Za-z0-9_]|\s*=)/g)].map(m => m[1]).filter(name => !/^(?:env:|global:|script:|local:|private:|using:|true$|false$|null$|LASTEXITCODE$)/i.test(name)))];
 }
 
 export class UsageParser {
-  constructor() { this.session = null; this.turn = null; this.cwd = null; }
+  constructor() { this.session = null; this.turn = null; this.cwd = null; this.excludedSession = false; }
   accept(record, source, line) {
     const p = record?.payload;
     if (!p || typeof p !== 'object') return [];
-    if (record.type === 'session_meta') { this.session = stringOrNull(p.id) || stringOrNull(p.session_id); this.cwd = stringOrNull(p.cwd); return []; }
+    if (record.type === 'session_meta') { this.session = stringOrNull(p.id) || stringOrNull(p.session_id); this.cwd = stringOrNull(p.cwd); this.excludedSession = p.source === 'subagent' || Boolean(p.source && typeof p.source === 'object' && p.source.subagent); return []; }
+    if (this.excludedSession) return [];
     if (record.type === 'turn_context') { this.turn = stringOrNull(p.turn_id); this.cwd = stringOrNull(p.cwd) || this.cwd; return []; }
     // Nested compacted/replacement histories and event_msg mirrors are deliberately ignored.
     if (record.type !== 'response_item') return [];
@@ -87,6 +89,7 @@ export class UsageParser {
     const time = typeof record.timestamp === 'string' && Number.isFinite(Date.parse(record.timestamp)) ? record.timestamp : null;
     const signals = [];
     if (p.type === 'message' && p.role === 'user' && Array.isArray(p.content)) {
+      if (p.content.some(part => typeof part.text === 'string' && part.text.startsWith('The following is the Codex agent history whose request action you are assessing.'))) return [];
       for (const part of p.content) if (part.type === 'input_text' && typeof part.text === 'string') {
         for (const marker of markers(part.text)) signals.push({ kind: 'explicit-marker', reference: marker });
       }
@@ -126,5 +129,5 @@ export function aggregateUsage(events, skills) {
     const group = accepted.filter(e => e.kind === kind);
     counts[kind] = { events: group.length, uniqueReferences: new Set(group.map(e => e.reference)).size, resolvedInstances: new Set(group.filter(e => e.resolution === 'resolved').map(e => e.candidateIds[0])).size };
   }
-  return { events: accepted, counts, limits: ['显式标记仅表示调用意图；可能仍为讨论，不证明执行成功。', '读取请求是推断信号，不证明读取成功或技能实际执行。', '同一会话同一轮的相同路径读取合并；有稳定 ID 的重放去重，无 ID 时只能按来源行去重。', '仅支持独立 Get-Content/cat 和静态 tools.exec_command 调用；动态脚本、条件分支等不推断。', '未解析宿主激活和 Agent 自报，不将其他信号替代它们。', '同名多实例保留歧义；没有观察到信号不代表从未使用。'] };
+  return { events: accepted, counts, limits: ['生成子会话（含审批审查）不计使用信号；来源不明的日志仅按可识别结构过滤。', '过滤已识别的变量语法，裸标记仍可能是讨论或变量，不能作为确定执行次数。', '显式标记仅表示调用意图；可能仍为讨论，不证明执行成功。', '读取请求是推断信号，不证明读取成功或技能实际执行。', '同一会话同一轮的相同路径读取合并；有稳定 ID 的重放去重，无 ID 时只能按来源行去重。', '仅支持独立 Get-Content/cat 和静态 tools.exec_command 调用；动态脚本、条件分支等不推断。', '未解析宿主激活和 Agent 自报，不将其他信号替代它们。', '同名多实例保留歧义；没有观察到信号不代表从未使用。'] };
 }

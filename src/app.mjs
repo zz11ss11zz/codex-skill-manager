@@ -71,6 +71,7 @@ function receive(result) {
       usage.append(textNode('p', `${label}：${count.events} 个信号 · ${count.uniqueReferences} 个不同引用 · ${count.resolvedInstances} 个唯一归属的文件实例`));
     }
     usage.append(textNode('p', `坏行 ${c.malformedLines} · 超长跳过 ${c.oversizedLines} · 本次重建 ${c.resets} · 读取问题 ${c.issues.length}。有剩余字节时可再次导入；末行尚未写完时需等待日志继续写入。`));
+    usage.append(textNode('p', `已排除 ${c.excludedSessionFiles || 0} 个生成子会话的使用信号（含审批审查）。${c.rebuiltForParser ? '旧索引已备份，新规则已开始从头解析；此前计数不再沿用。' : ''}`));
     const details = document.createElement('details');
     details.append(textNode('summary', `证据与统计限制（展示 ${u.events.length} / ${u.totalEvents} 条）`));
     for (const limit of u.limits) details.append(textNode('p', limit));
