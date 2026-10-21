@@ -5,8 +5,9 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { pathToFileURL } from 'node:url';
 import { scanInventory } from './inventory.mjs';
 import { loadPluginStatus, applyPluginStatus } from './plugins.mjs';
+import { UsageIndex } from './usage-index.mjs';
 
-export function createServer(roots, { queryPlugins = loadPluginStatus } = {}) {
+export function createServer(roots, { queryPlugins = loadPluginStatus, usageIndex = new UsageIndex() } = {}) {
 // Resource identity follows its content so hosts cannot reuse a previous UI build.
 // Keep the content immutable for the lifetime of this server instance.
 const html = readFileSync(new URL('../dist/dashboard.html', import.meta.url), 'utf8');
@@ -38,6 +39,20 @@ server.registerTool('check_plugin_status', {
     return { content: [{ type: 'text', text: `已读取 ${status.plugins.length} 条插件安装记录；未匹配缓存不等于未安装。` }], structuredContent: inventory };
   } catch {
     return { isError: true, content: [{ type: 'text', text: '无法读取插件安装清单。请检查 Codex CLI 是否可用、登录环境和网络；保留现有清单，不推断安装状态。' }] };
+  }
+});
+server.registerTool('import_usage', {
+  title: '增量导入本机使用信号',
+  description: '读取本机 Codex sessions 和 archived_sessions 日志，增量提取显式标记与读取请求。只将信号、来源定位和读取位置写入项目 .local/usage-index.json，不保存聊天正文，不联网。',
+  inputSchema: {},
+  annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
+}, async () => {
+  try {
+    const inventory = await scanInventory(roots);
+    inventory.usage = await usageIndex.refresh(inventory.skills);
+    return { content: [{ type: 'text', text: `已索引 ${inventory.usage.coverage.indexedFiles} 个日志文件；剩余 ${inventory.usage.coverage.pendingBytes} 字节尚未处理。信号不等于成功执行次数。` }], structuredContent: inventory };
+  } catch {
+    return { isError: true, content: [{ type: 'text', text: '导入失败，保留之前的索引。请检查日志权限、本地索引格式或是否已有导入占用；恢复方法见仓库本地验证文档。' }] };
   }
 });
 return server;

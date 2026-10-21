@@ -3,6 +3,7 @@ import path from 'node:path';
 import { parse } from 'acorn';
 
 const hash = value => createHash('sha256').update(value).digest('hex');
+const stringOrNull = value => typeof value === 'string' && value.length ? value : null;
 const normalizePath = value => /^[A-Za-z]:[\\/]/.test(value) ? path.win32.normalize(value).replaceAll('\\', '/').toLowerCase() : path.posix.normalize(value);
 const literal = node => node?.type === 'Literal' && typeof node.value === 'string' ? node.value : null;
 function commandObject(node) {
@@ -77,11 +78,11 @@ export class UsageParser {
   accept(record, source, line) {
     const p = record?.payload;
     if (!p || typeof p !== 'object') return [];
-    if (record.type === 'session_meta') { this.session = p.id || p.session_id || null; this.cwd = p.cwd || null; return []; }
-    if (record.type === 'turn_context') { this.turn = p.turn_id || null; this.cwd = p.cwd || this.cwd; return []; }
+    if (record.type === 'session_meta') { this.session = stringOrNull(p.id) || stringOrNull(p.session_id); this.cwd = stringOrNull(p.cwd); return []; }
+    if (record.type === 'turn_context') { this.turn = stringOrNull(p.turn_id); this.cwd = stringOrNull(p.cwd) || this.cwd; return []; }
     // Nested compacted/replacement histories and event_msg mirrors are deliberately ignored.
     if (record.type !== 'response_item') return [];
-    const stableId = typeof p.id === 'string' ? p.id : typeof p.call_id === 'string' ? p.call_id : null;
+    const stableId = stringOrNull(p.id) || stringOrNull(p.call_id);
     const origin = stableId || `${source}:${line}`;
     const time = typeof record.timestamp === 'string' && Number.isFinite(Date.parse(record.timestamp)) ? record.timestamp : null;
     const signals = [];

@@ -14,12 +14,16 @@ test('stdio handshake, global discovery, resource and isolated inventory result'
   await writeFile(path.join(root, 'skills', 'example', 'SKILL.md'), '---\nname: example\ndescription: synthetic test fixture\n---\n');
   const roots = { skills: path.join(root, 'skills'), cache: path.join(root, 'cache') };
   const client = new Client({ name: 'protocol-test', version: '1.0.0' });
-  const code = `import {createServer} from ${JSON.stringify(new URL('../src/server.mjs', import.meta.url).href)}; import {StdioServerTransport} from '@modelcontextprotocol/sdk/server/stdio.js'; let queries = 0; await createServer(${JSON.stringify(roots)}, {queryPlugins: async () => { if (queries++) throw new Error('synthetic failure'); return {plugins: [], checkedAt: '2026-01-01T00:00:00Z', evidence: 'synthetic'}; }}).connect(new StdioServerTransport());`;
+  const logs = path.join(root, 'logs');
+  await mkdir(logs);
+  await writeFile(path.join(logs, 'synthetic.jsonl'), JSON.stringify({ type: 'response_item', payload: { type: 'message', id: 'synthetic', role: 'user', content: [{ type: 'input_text', text: '$example' }] } }) + '\n');
+  const usageOptions = { roots: [logs], stateFile: path.join(root, 'index', 'usage.json') };
+  const code = `import {createServer} from ${JSON.stringify(new URL('../src/server.mjs', import.meta.url).href)}; import {UsageIndex} from ${JSON.stringify(new URL('../src/usage-index.mjs', import.meta.url).href)}; import {StdioServerTransport} from '@modelcontextprotocol/sdk/server/stdio.js'; let queries = 0; await createServer(${JSON.stringify(roots)}, {usageIndex: new UsageIndex(${JSON.stringify(usageOptions)}), queryPlugins: async () => { if (queries++) throw new Error('synthetic failure'); return {plugins: [], checkedAt: '2026-01-01T00:00:00Z', evidence: 'synthetic'}; }}).connect(new StdioServerTransport());`;
   const transport = new StdioClientTransport({ command: process.execPath, args: ['--input-type=module', '-e', code], cwd: fileURLToPath(new URL('..', import.meta.url)), stderr: 'pipe' });
   try {
     await client.connect(transport);
     const { tools } = await client.listTools();
-    assert.equal(tools.length, 2);
+    assert.equal(tools.length, 3);
     assert.deepEqual(tools[0]._meta['openai/ui'].entrypoints, [{ type: 'global' }]);
     const uri = tools[0]._meta.ui.resourceUri;
     const { contents } = await client.readResource({ uri });
@@ -27,7 +31,7 @@ test('stdio handshake, global discovery, resource and isolated inventory result'
     assert.equal(uri, `ui://codex-skill-manager/dashboard-${revision}.html`);
     await assert.rejects(client.readResource({ uri: 'ui://codex-skill-manager/dashboard.html' }));
     assert.equal(contents[0].mimeType, 'text/html;profile=mcp-app');
-    assert.match(contents[0].text, /只读清单/);
+    assert.match(contents[0].text, /技能文件只读/);
     assert.ok(!contents[0].text.includes('/* APP_BUNDLE */'));
     const result = await client.callTool({ name: 'open_skill_manager', arguments: {} });
     assert.equal(result.isError, undefined);
@@ -40,6 +44,11 @@ test('stdio handshake, global discovery, resource and isolated inventory result'
     const failed = await client.callTool({ name: 'check_plugin_status', arguments: {} });
     assert.equal(failed.isError, true);
     assert.equal(failed.structuredContent, undefined);
+    const imported = await client.callTool({ name: 'import_usage', arguments: {} });
+    assert.equal(imported.structuredContent.usage.counts['explicit-marker'].events, 1);
+    const repeated = await client.callTool({ name: 'import_usage', arguments: {} });
+    assert.equal(repeated.structuredContent.usage.counts['explicit-marker'].events, 1);
+    assert.equal(repeated.structuredContent.usage.coverage.bytesRead, 0);
     await assert.rejects(client.readResource({ uri: 'file:///private.txt' }));
     const missing = await client.callTool({ name: 'delete_skill', arguments: {} });
     assert.equal(missing.isError, true);

@@ -21,6 +21,11 @@ test('only plain user markers become intent signals; quotes, code, outputs and c
   assert.equal(p.accept({ type: 'event_msg', payload: { type: 'item_completed', item: message('m', '$demo').payload } }, 'log', 6).length, 0);
   assert.equal(p.accept({ type: 'response_item', payload: { type: 'function_call_output', output: '$demo' } }, 'log', 7).length, 0);
   assert.ok(!JSON.stringify(signals).includes('Use '));
+  p.accept({ type: 'session_meta', payload: { id: { private: 'payload' }, cwd: { private: 'payload' } } }, 'log', 8);
+  const malformedMetadata = p.accept(message('', '$demo'), 'log', 9);
+  assert.equal(malformedMetadata[0].session, null);
+  assert.equal(malformedMetadata[0].identity, 'source-line');
+  assert.ok(!JSON.stringify(malformedMetadata).includes('private'));
 });
 
 test('read commands are parsed without executing code and dynamic/audit-only mentions are ignored', () => {

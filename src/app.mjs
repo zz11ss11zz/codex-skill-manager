@@ -7,6 +7,9 @@ const evidence = document.querySelector('#evidence');
 const refresh = document.querySelector('#refresh');
 const comparisons = document.querySelector('#comparisons');
 const checkPlugins = document.querySelector('#check-plugins');
+const importUsage = document.querySelector('#import-usage');
+const usage = document.querySelector('#usage');
+const setBusy = value => { refresh.disabled = value; checkPlugins.disabled = value; importUsage.disabled = value; };
 let current = null;
 const app = new App({ name: 'codex-skill-manager', version: '0.0.1' }, {});
 const textNode = (tag, value) => { const node = document.createElement(tag); node.textContent = value; return node; };
@@ -33,6 +36,23 @@ function receive(result) {
     list.replaceChildren(); return;
   }
   current = data;
+  usage.replaceChildren();
+  if (data.usage) {
+    const u = data.usage, c = u.coverage;
+    usage.append(textNode('p', `已索引 ${c.indexedFiles} / ${c.discoveredFiles} 个发现的日志 · 待处理 ${c.pendingBytes.toLocaleString()} 字节 · 本次读取 ${c.bytesRead.toLocaleString()} 字节`));
+    usage.append(textNode('p', `已读记录时间范围：${c.from || '未知'} 至 ${c.to || '未知'} · 更新于 ${c.checkedAt}`));
+    for (const [kind, label] of [['explicit-marker', '显式标记（意图）'], ['read-request', '读取请求（推断）']]) {
+      const count = u.counts[kind];
+      usage.append(textNode('p', `${label}：${count.events} 个信号 · ${count.uniqueReferences} 个不同引用 · ${count.resolvedInstances} 个唯一归属的文件实例`));
+    }
+    usage.append(textNode('p', `坏行 ${c.malformedLines} · 超长跳过 ${c.oversizedLines} · 本次重建 ${c.resets} · 读取问题 ${c.issues.length}。有剩余字节时可再次导入；末行尚未写完时需等待日志继续写入。`));
+    const details = document.createElement('details');
+    details.append(textNode('summary', `证据与统计限制（展示 ${u.events.length} / ${u.totalEvents} 条）`));
+    for (const limit of u.limits) details.append(textNode('p', limit));
+    for (const issue of c.issues) details.append(textNode('p', `${issue.reason}：${issue.path}`));
+    for (const event of u.events) details.append(textNode('p', `${event.kind === 'explicit-marker' ? '显式标记' : '读取请求'} · ${event.reference} · ${event.resolution === 'resolved' ? '唯一归属' : event.resolution === 'ambiguous' ? '归属有歧义' : '未解析归属'} · ${event.timestamp || '时间未知'} · ${event.source}:${event.line}`));
+    usage.append(details);
+  } else usage.append(textNode('p', '尚未导入本次统计。不能据此判断从未使用；重新导入会从本地索引续读。'));
   const groups = data.comparisons;
   comparisons.replaceChildren(textNode('p', '仅比较 SKILL.md 文本，未比较附带脚本和资源。相同内容不代表可安全删除；同名不同内容也可能是正常版本差异。'));
   if (groups) {
@@ -55,23 +75,31 @@ function receive(result) {
 }
 app.ontoolresult = receive;
 refresh.addEventListener('click', async () => {
-  refresh.disabled = true;
-  checkPlugins.disabled = true;
+  setBusy(true);
   status.textContent = '正在重新扫描…';
   try { receive(await app.callServerTool({ name: 'open_skill_manager', arguments: {} })); }
   catch { status.textContent = '扫描失败，保留上一次清单。请检查 MCP 连接后重试。'; }
-  finally { refresh.disabled = false; checkPlugins.disabled = false; }
+  finally { setBusy(false); }
 });
 checkPlugins.addEventListener('click', async () => {
-  checkPlugins.disabled = true;
-  refresh.disabled = true;
+  setBusy(true);
   status.textContent = '正在核对插件安装状态…';
   try {
     const result = await app.callServerTool({ name: 'check_plugin_status', arguments: {} });
     if (result.isError) throw new Error('query failed');
     receive(result);
   } catch { status.textContent = '安装状态查询失败，保留上一次结果。请检查 CLI、登录环境与网络。'; }
-  finally { checkPlugins.disabled = false; refresh.disabled = false; }
+  finally { setBusy(false); }
+});
+importUsage.addEventListener('click', async () => {
+  setBusy(true);
+  status.textContent = '正在增量导入本机日志…';
+  try {
+    const result = await app.callServerTool({ name: 'import_usage', arguments: {} });
+    if (result.isError) throw new Error('import failed');
+    receive(result);
+  } catch { status.textContent = '导入失败，保留原结果和已有索引。请检查日志权限、索引或并发导入状态。'; }
+  finally { setBusy(false); }
 });
 search.addEventListener('input', render);
 source.addEventListener('change', render);

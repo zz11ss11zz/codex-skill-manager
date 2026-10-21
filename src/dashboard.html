@@ -7,14 +7,17 @@ input,select{display:block;width:100%;padding:10px 12px;margin:6px 0 16px;border
 button{background:#245eaa;color:white;border:0;border-radius:6px;padding:10px 18px;font:inherit;cursor:pointer}button:disabled{opacity:.6;cursor:wait}button:focus-visible{outline:2px solid #245eaa;outline-offset:3px}
 </style></head><body><main>
 <header><small>CODEX SKILL MANAGER / READ ONLY</small><h1>能力管理器</h1><p>查看本地技能文件与来源证据。</p></header>
-<p class="notice">只读清单：文件存在不等于技能已启用，插件缓存不等于已安装。使用次数尚未统计。</p>
+<p class="notice">技能文件只读：文件存在不等于已启用，插件缓存不等于已安装。使用信号不等于成功执行次数。</p>
 <details><summary>重复与同名冲突候选</summary><div id="comparisons"></div></details>
 <label for="search">搜索名称、描述或路径</label><input id="search" type="search" placeholder="输入关键词">
 <label for="source">来源</label><select id="source"><option value="">全部来源</option></select>
 <button id="refresh" type="button">重新扫描</button>
 <button id="check-plugins" type="button">核对插件安装状态</button>
 <p>安装核对调用 Codex CLI，可能连接已配置的插件市场；不发送技能正文。普通扫描仅检查本地文件。</p>
+<button id="import-usage" type="button">增量导入本机使用信号</button>
+<p>仅读取本机 Codex 会话与归档日志，将信号和读取位置写入本项目 .local 索引，不保存聊天正文、不联网。每次最多读取 32 MiB。</p>
+<section aria-label="使用信号统计"><h2>使用信号</h2><div id="usage">尚未导入。不能据此判断从未使用。</div></section>
 <p id="status" role="status">正在连接 MCP 宿主…</p><ul id="skills" aria-label="技能文件清单"></ul>
 <details><summary>扫描范围、限制与问题</summary><div id="evidence"></div></details>
-<footer>当前按文件实例计数。同名与相同内容副本均保留；未读取使用日志。</footer>
+<footer>当前按文件实例计数。同名与相同内容副本均保留；只有点击使用信号导入按钮才读取会话日志。</footer>
 </main><script>/* APP_BUNDLE */</script></body></html>
