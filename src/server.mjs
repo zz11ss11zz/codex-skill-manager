@@ -6,8 +6,17 @@ import { pathToFileURL } from 'node:url';
 import { scanInventory } from './inventory.mjs';
 import { loadPluginStatus, applyPluginStatus } from './plugins.mjs';
 import { UsageIndex } from './usage-index.mjs';
+import { ArchiveManager } from './archive.mjs';
+import { z } from 'zod';
 
-export function createServer(roots, { queryPlugins = loadPluginStatus, usageIndex = new UsageIndex() } = {}) {
+export function createServer(roots, { queryPlugins = loadPluginStatus, usageIndex = new UsageIndex(), archiveManager = new ArchiveManager({ roots }) } = {}) {
+async function inventoryWithArchives() {
+  const inventory = await scanInventory(roots);
+  inventory.managementSupported = process.platform === 'win32';
+  try { inventory.archives = await archiveManager.list(); }
+  catch { inventory.archives = []; inventory.issues.push({ path: archiveManager.archiveRoot, reason: '归档记录无法读取' }); }
+  return inventory;
+}
 // Resource identity follows its content so hosts cannot reuse a previous UI build.
 // Keep the content immutable for the lifetime of this server instance.
 const html = readFileSync(new URL('../dist/dashboard.html', import.meta.url), 'utf8');
@@ -24,7 +33,7 @@ server.registerTool('open_skill_manager', {
   annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
   _meta: { ui: { resourceUri: uri }, 'openai/ui': { entrypoints: [{ type: 'global' }] } },
 }, async () => {
-  const inventory = await scanInventory(roots);
+  const inventory = await inventoryWithArchives();
   return { content: [{ type: 'text', text: `发现 ${inventory.skills.length} 个技能文件实例；${inventory.issues.length} 个扫描问题。启用状态与使用统计尚未核实。` }], structuredContent: inventory };
 });
 server.registerTool('check_plugin_status', {
@@ -35,7 +44,7 @@ server.registerTool('check_plugin_status', {
 }, async () => {
   try {
     const status = await queryPlugins();
-    const inventory = applyPluginStatus(await scanInventory(roots), status);
+    const inventory = applyPluginStatus(await inventoryWithArchives(), status);
     return { content: [{ type: 'text', text: `已读取 ${status.plugins.length} 条插件安装记录；未匹配缓存不等于未安装。` }], structuredContent: inventory };
   } catch {
     return { isError: true, content: [{ type: 'text', text: '无法读取插件安装清单。请检查 Codex CLI 是否可用、登录环境和网络；保留现有清单，不推断安装状态。' }] };
@@ -48,13 +57,39 @@ server.registerTool('import_usage', {
   annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
 }, async () => {
   try {
-    const inventory = await scanInventory(roots);
+    const inventory = await inventoryWithArchives();
     inventory.usage = await usageIndex.refresh(inventory.skills);
     return { content: [{ type: 'text', text: `已索引 ${inventory.usage.coverage.indexedFiles} 个日志文件；剩余 ${inventory.usage.coverage.pendingBytes} 字节尚未处理。信号不等于成功执行次数。` }], structuredContent: inventory };
   } catch {
     return { isError: true, content: [{ type: 'text', text: '导入失败，保留之前的索引。请检查日志权限、本地索引格式或是否已有导入占用；恢复方法见仓库本地验证文档。' }] };
   }
 });
+const managementError = error => ({ isError: true, content: [{ type: 'text', text: error.code ? '文件操作失败，请检查路径权限及操作记录；未确认成功。' : error.message }] });
+server.registerTool('preview_skill_archive', {
+  title: '预览用户技能归档', description: '只读预览用户技能目录的归档范围与影响，不执行移动。系统和插件内容不可归档。',
+  inputSchema: { skillId: z.string().regex(/^[0-9a-f]{64}$/) }, annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
+}, async ({ skillId }) => {
+  try { const plan = await archiveManager.previewArchive(skillId); return { content: [{ type: 'text', text: `${plan.title}：${plan.files} 个文件，${plan.bytes} 字节。${plan.impact}` }], structuredContent: { mode: 'management-plan', plan } }; }
+  catch (error) { return managementError(error); }
+});
+server.registerTool('preview_skill_restore', {
+  title: '预览用户技能恢复', description: '只读核对已归档技能并生成恢复预览；原位置已有内容时拒绝覆盖。',
+  inputSchema: { archiveId: z.string().uuid() }, annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
+}, async ({ archiveId }) => {
+  try { const plan = await archiveManager.previewRestore(archiveId); return { content: [{ type: 'text', text: `${plan.title}：${plan.impact}` }], structuredContent: { mode: 'management-plan', plan } }; }
+  catch (error) { return managementError(error); }
+});
+server.registerTool('execute_skill_plan', {
+  title: '执行已预览的归档或恢复', description: '仅在用户已针对该具体预览明确要求执行后调用。按一次性预览令牌移动用户技能目录，保留恢复记录；系统和插件只读。',
+  inputSchema: { token: z.string().uuid() }, annotations: { readOnlyHint: false, destructiveHint: true, openWorldHint: false },
+}, async ({ token }) => {
+  try { const operation = await archiveManager.execute(token); const inventory = await inventoryWithArchives(); inventory.operation = operation; return { content: [{ type: 'text', text: operation.status === 'archived' ? '已归档，可从归档记录恢复。' : '已恢复至原位置。' }], structuredContent: inventory }; }
+  catch (error) { return managementError(error); }
+});
+server.registerTool('cancel_skill_plan', {
+  title: '取消管理预览', description: '使尚未执行的归档或恢复预览失效，不修改技能文件。',
+  inputSchema: { token: z.string().uuid() }, annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
+}, async ({ token }) => { archiveManager.cancel(token); return { content: [{ type: 'text', text: '预览已取消。' }], structuredContent: { mode: 'management-cancelled' } }; });
 return server;
 }
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {

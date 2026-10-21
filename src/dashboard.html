@@ -6,8 +6,11 @@
 input,select{display:block;width:100%;padding:10px 12px;margin:6px 0 16px;border:1px solid #aeb8c4;border-radius:6px;background:white;color:#20252b;font:inherit}details{margin-top:14px}summary{cursor:pointer;color:#245eaa}details p{overflow-wrap:anywhere;font-size:13px}input:focus,select:focus,summary:focus-visible{outline:2px solid #245eaa;outline-offset:2px}
 button{background:#245eaa;color:white;border:0;border-radius:6px;padding:10px 18px;font:inherit;cursor:pointer}button:disabled{opacity:.6;cursor:wait}button:focus-visible{outline:2px solid #245eaa;outline-offset:3px}
 </style></head><body><main>
-<header><small>CODEX SKILL MANAGER / READ ONLY</small><h1>能力管理器</h1><p>查看本地技能文件与来源证据。</p></header>
-<p class="notice">技能文件只读：文件存在不等于已启用，插件缓存不等于已安装。使用信号不等于成功执行次数。</p>
+<header><small>CODEX SKILL MANAGER / LOCAL</small><h1>能力管理器</h1><p>查看本地技能文件与来源证据。</p></header>
+<p class="notice">扫描只读，用户技能归档与恢复需先预览再执行；系统和插件内容只读。文件存在不等于已启用，使用信号不等于成功执行次数。</p>
+<section id="management-plan" hidden aria-label="管理操作预览"></section>
+<p id="management-status" role="status"></p>
+<details><summary>归档与恢复记录</summary><div id="archives"></div></details>
 <details><summary>重复与同名冲突候选</summary><div id="comparisons"></div></details>
 <label for="search">搜索名称、描述或路径</label><input id="search" type="search" placeholder="输入关键词">
 <label for="source">来源</label><select id="source"><option value="">全部来源</option></select>

@@ -9,7 +9,10 @@ const comparisons = document.querySelector('#comparisons');
 const checkPlugins = document.querySelector('#check-plugins');
 const importUsage = document.querySelector('#import-usage');
 const usage = document.querySelector('#usage');
-const setBusy = value => { refresh.disabled = value; checkPlugins.disabled = value; importUsage.disabled = value; };
+const setBusy = value => { document.querySelectorAll('button').forEach(button => { button.disabled = value; }); };
+const planPanel = document.querySelector('#management-plan');
+const managementStatus = document.querySelector('#management-status');
+const archives = document.querySelector('#archives');
 let current = null;
 const app = new App({ name: 'codex-skill-manager', version: '0.0.1' }, {});
 const textNode = (tag, value) => { const node = document.createElement(tag); node.textContent = value; return node; };
@@ -25,17 +28,39 @@ function render() {
     if (skill.owner) details.append(textNode('p', `${skill.owner.marketplace} / ${skill.owner.name} / ${skill.owner.version}`), textNode('p', `归属证据：${skill.owner.manifest}`));
     if (skill.pluginStatus) details.append(textNode('p', `安装核对：${skill.pluginStatus.evidence} · ${skill.pluginStatus.checkedAt} · ${skill.pluginStatus.id}`));
     item.append(textNode('h2', skill.name), textNode('p', `${skill.source} · ${skill.state}`), textNode('p', skill.description), details);
+    if (current.managementSupported && ['用户技能', '用户 .agents 技能'].includes(skill.source)) {
+      const button = textNode('button', '预览归档'); button.type = 'button';
+      button.addEventListener('click', () => preview('preview_skill_archive', { skillId: skill.id }));
+      item.append(button);
+    }
     return item;
   }));
   if (!filtered.length) list.append(textNode('li', '没有匹配项。请检查筛选条件与扫描问题。'));
 }
 function receive(result) {
   const data = result.structuredContent;
+  if (data?.mode === 'management-plan') { showPlan(data.plan); return; }
+  if (data?.mode === 'management-cancelled') { planPanel.hidden = true; return; }
   if (data?.mode !== 'inventory' || !Array.isArray(data.skills)) {
     status.textContent = '返回数据版本不匹配，请重启服务后重新打开。';
     list.replaceChildren(); return;
   }
   current = data;
+  archives.replaceChildren();
+  for (const entry of data.archives || []) {
+    const row = document.createElement('div');
+    const labels = { archived: '已归档', restored: '已恢复', conflict: '原位置冲突', incomplete: '操作未闭合，请检查记录', invalid: '记录无效，请检查' };
+    row.append(textNode('p', `${entry.title} · ${labels[entry.status] || entry.status}`));
+    if (entry.original) row.append(textNode('p', entry.original));
+    if (entry.status === 'archived' && data.managementSupported) {
+      const button = textNode('button', '预览恢复'); button.type = 'button';
+      button.addEventListener('click', () => preview('preview_skill_restore', { archiveId: entry.id }));
+      row.append(button);
+    }
+    archives.append(row);
+  }
+  if (!data.archives?.length) archives.append(textNode('p', '尚无可显示的归档记录。'));
+  if (data.operation) { planPanel.hidden = true; managementStatus.textContent = data.operation.status === 'archived' ? '已归档。可在“归档与恢复记录”中预览恢复。' : '已恢复至原位置。新会话的发现状态需由宿主重新加载后确认。'; }
   usage.replaceChildren();
   if (data.usage) {
     const u = data.usage, c = u.coverage;
@@ -72,6 +97,37 @@ function receive(result) {
   evidence.replaceChildren(...data.limits.map(s => textNode('p', s)), ...data.coverage.map(s => textNode('p', `范围：${s.path}`)), ...data.issues.map(s => textNode('p', `${s.reason}：${s.path}`)));
   if (data.pluginRegistry) evidence.prepend(textNode('p', `插件安装记录：${data.pluginRegistry.plugins.length} 条 · ${data.pluginRegistry.checkedAt}。以当前 CLI 用户环境为准；未匹配不证明未安装。重新扫描将清除本次核对结果。`));
   render();
+}
+async function managementCall(name, args) {
+  const result = await app.callServerTool({ name, arguments: args });
+  if (result.isError) throw new Error(result.content?.find(c => c.type === 'text')?.text || '操作失败');
+  return result;
+}
+async function preview(name, args) {
+  setBusy(true); managementStatus.textContent = '正在核对文件并生成预览…';
+  try { const result = await managementCall(name, args); showPlan(result.structuredContent.plan); managementStatus.textContent = ''; }
+  catch (error) { managementStatus.textContent = error.message; }
+  finally { setBusy(false); }
+}
+function showPlan(plan) {
+  planPanel.hidden = false;
+  planPanel.replaceChildren(textNode('h2', plan.action === 'archive' ? '归档预览' : '恢复预览'), textNode('p', plan.title), textNode('p', plan.impact), textNode('p', `文件 ${plan.files} 个 · ${plan.bytes} 字节 · 有效至 ${new Date(plan.expiresAt).toLocaleTimeString()}`), textNode('p', `原位置：${plan.original}`), textNode('p', `归档位置：${plan.destination}`));
+  const confirm = textNode('button', plan.action === 'archive' ? '执行归档' : '执行恢复'); confirm.type = 'button';
+  const cancel = textNode('button', '取消预览'); cancel.type = 'button';
+  confirm.addEventListener('click', async () => {
+    setBusy(true);
+    try { receive(await managementCall('execute_skill_plan', { token: plan.token })); }
+    catch (error) { managementStatus.textContent = `${error.message} 请重新预览后再操作。`; planPanel.hidden = true; }
+    finally { setBusy(false); }
+  });
+  cancel.addEventListener('click', async () => {
+    setBusy(true);
+    try { await managementCall('cancel_skill_plan', { token: plan.token }); planPanel.hidden = true; managementStatus.textContent = '预览已取消。'; }
+    catch (error) { managementStatus.textContent = error.message; }
+    finally { setBusy(false); }
+  });
+  planPanel.append(confirm, cancel);
+  planPanel.scrollIntoView({ block: 'nearest' });
 }
 app.ontoolresult = receive;
 refresh.addEventListener('click', async () => {

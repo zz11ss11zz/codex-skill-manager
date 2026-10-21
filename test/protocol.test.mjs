@@ -18,12 +18,13 @@ test('stdio handshake, global discovery, resource and isolated inventory result'
   await mkdir(logs);
   await writeFile(path.join(logs, 'synthetic.jsonl'), JSON.stringify({ type: 'response_item', payload: { type: 'message', id: 'synthetic', role: 'user', content: [{ type: 'input_text', text: '$example' }] } }) + '\n');
   const usageOptions = { roots: [logs], stateFile: path.join(root, 'index', 'usage.json') };
-  const code = `import {createServer} from ${JSON.stringify(new URL('../src/server.mjs', import.meta.url).href)}; import {UsageIndex} from ${JSON.stringify(new URL('../src/usage-index.mjs', import.meta.url).href)}; import {StdioServerTransport} from '@modelcontextprotocol/sdk/server/stdio.js'; let queries = 0; await createServer(${JSON.stringify(roots)}, {usageIndex: new UsageIndex(${JSON.stringify(usageOptions)}), queryPlugins: async () => { if (queries++) throw new Error('synthetic failure'); return {plugins: [], checkedAt: '2026-01-01T00:00:00Z', evidence: 'synthetic'}; }}).connect(new StdioServerTransport());`;
+  const archiveOptions = { roots, archiveRoot: path.join(root, 'archive') };
+  const code = `import {createServer} from ${JSON.stringify(new URL('../src/server.mjs', import.meta.url).href)}; import {UsageIndex} from ${JSON.stringify(new URL('../src/usage-index.mjs', import.meta.url).href)}; import {ArchiveManager} from ${JSON.stringify(new URL('../src/archive.mjs', import.meta.url).href)}; import {StdioServerTransport} from '@modelcontextprotocol/sdk/server/stdio.js'; let queries = 0; await createServer(${JSON.stringify(roots)}, {archiveManager: new ArchiveManager(${JSON.stringify(archiveOptions)}), usageIndex: new UsageIndex(${JSON.stringify(usageOptions)}), queryPlugins: async () => { if (queries++) throw new Error('synthetic failure'); return {plugins: [], checkedAt: '2026-01-01T00:00:00Z', evidence: 'synthetic'}; }}).connect(new StdioServerTransport());`;
   const transport = new StdioClientTransport({ command: process.execPath, args: ['--input-type=module', '-e', code], cwd: fileURLToPath(new URL('..', import.meta.url)), stderr: 'pipe' });
   try {
     await client.connect(transport);
     const { tools } = await client.listTools();
-    assert.equal(tools.length, 3);
+    assert.equal(tools.length, 7);
     assert.deepEqual(tools[0]._meta['openai/ui'].entrypoints, [{ type: 'global' }]);
     const uri = tools[0]._meta.ui.resourceUri;
     const { contents } = await client.readResource({ uri });
@@ -31,7 +32,7 @@ test('stdio handshake, global discovery, resource and isolated inventory result'
     assert.equal(uri, `ui://codex-skill-manager/dashboard-${revision}.html`);
     await assert.rejects(client.readResource({ uri: 'ui://codex-skill-manager/dashboard.html' }));
     assert.equal(contents[0].mimeType, 'text/html;profile=mcp-app');
-    assert.match(contents[0].text, /技能文件只读/);
+    assert.match(contents[0].text, /扫描只读/);
     assert.ok(!contents[0].text.includes('/* APP_BUNDLE */'));
     const result = await client.callTool({ name: 'open_skill_manager', arguments: {} });
     assert.equal(result.isError, undefined);
@@ -49,6 +50,21 @@ test('stdio handshake, global discovery, resource and isolated inventory result'
     const repeated = await client.callTool({ name: 'import_usage', arguments: {} });
     assert.equal(repeated.structuredContent.usage.counts['explicit-marker'].events, 1);
     assert.equal(repeated.structuredContent.usage.coverage.bytesRead, 0);
+    const preview = await client.callTool({ name: 'preview_skill_archive', arguments: { skillId: result.structuredContent.skills[0].id } });
+    assert.equal(preview.structuredContent.mode, 'management-plan');
+    const cancelled = await client.callTool({ name: 'cancel_skill_plan', arguments: { token: preview.structuredContent.plan.token } });
+    assert.equal(cancelled.structuredContent.mode, 'management-cancelled');
+    const refused = await client.callTool({ name: 'execute_skill_plan', arguments: { token: preview.structuredContent.plan.token } });
+    assert.equal(refused.isError, true);
+    if (process.platform === 'win32') {
+      const plan = await client.callTool({ name: 'preview_skill_archive', arguments: { skillId: result.structuredContent.skills[0].id } });
+      const archive = await client.callTool({ name: 'execute_skill_plan', arguments: { token: plan.structuredContent.plan.token } });
+      assert.equal(archive.structuredContent.operation.status, 'archived');
+      assert.equal(archive.structuredContent.skills.length, 0);
+      const restore = await client.callTool({ name: 'preview_skill_restore', arguments: { archiveId: archive.structuredContent.operation.id } });
+      const restored = await client.callTool({ name: 'execute_skill_plan', arguments: { token: restore.structuredContent.plan.token } });
+      assert.equal(restored.structuredContent.skills.length, 1);
+    }
     await assert.rejects(client.readResource({ uri: 'file:///private.txt' }));
     const missing = await client.callTool({ name: 'delete_skill', arguments: {} });
     assert.equal(missing.isError, true);
