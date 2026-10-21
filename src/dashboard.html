@@ -8,6 +8,7 @@ button{background:#245eaa;color:white;border:0;border-radius:6px;padding:10px 18
 </style></head><body><main>
 <header><small>CODEX SKILL MANAGER / READ ONLY</small><h1>能力管理器</h1><p>查看本地技能文件与来源证据。</p></header>
 <p class="notice">只读清单：文件存在不等于技能已启用，插件缓存不等于已安装。使用次数尚未统计。</p>
+<details><summary>重复与同名冲突候选</summary><div id="comparisons"></div></details>
 <label for="search">搜索名称、描述或路径</label><input id="search" type="search" placeholder="输入关键词">
 <label for="source">来源</label><select id="source"><option value="">全部来源</option></select>
 <button id="refresh" type="button">重新扫描</button>

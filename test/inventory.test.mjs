@@ -33,6 +33,10 @@ test('Chinese paths, nested examples, conflicting names, old caches and invalid 
     assert.ok(result.issues.some(i => i.reason.includes('缺少有效插件')));
     assert.ok(!result.issues.some(i => i.path.includes('tools-only')));
     assert.equal(result.usage, null);
+    assert.equal(result.comparisons.identicalDocuments.length, 1);
+    assert.equal(result.comparisons.identicalDocuments[0].ids.length, 4);
+    assert.equal(result.comparisons.nameConflicts.length, 1);
+    assert.equal(result.comparisons.nameConflicts[0].ids.length, 5);
   } finally { await rm(temp, { recursive: true, force: true }); }
 });
 
@@ -45,6 +49,7 @@ test('directory junctions are skipped and malformed frontmatter remains visible'
     await symlink(path.join(temp, 'outside'), path.join(temp, 'skills', 'linked'), process.platform === 'win32' ? 'junction' : 'dir');
     const result = await scanInventory({ skills: path.join(temp, 'skills'), cache: path.join(temp, 'missing') });
     assert.equal(result.skills.length, 1);
+    assert.deepEqual(result.comparisons, { identicalDocuments: [], nameConflicts: [] });
     assert.ok(result.issues.some(i => i.reason.includes('符号链接')));
     assert.ok(result.issues.some(i => i.reason.includes('元数据无效')));
     assert.ok(result.issues.some(i => i.reason === '目录不存在'));

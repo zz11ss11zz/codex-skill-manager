@@ -8,6 +8,20 @@ const MAX_FILE = 1024 * 1024;
 const digest = value => createHash('sha256').update(value).digest('hex');
 const inside = (root, target) => { const rel = path.relative(root, target); return rel === '' || (!rel.startsWith('..' + path.sep) && rel !== '..' && !path.isAbsolute(rel)); };
 
+export function compareInstances(skills) {
+  const fingerprints = new Map(), names = new Map();
+  for (const skill of skills) {
+    for (const [map, key] of [[fingerprints, skill.fingerprint], [names, skill.name]]) {
+      if (!map.has(key)) map.set(key, []);
+      map.get(key).push(skill);
+    }
+  }
+  return {
+    identicalDocuments: [...fingerprints.values()].filter(group => group.length > 1).map(group => ({ fingerprint: group[0].fingerprint, ids: group.map(s => s.id) })),
+    nameConflicts: [...names.entries()].filter(([, group]) => new Set(group.map(s => s.fingerprint)).size > 1).map(([name, group]) => ({ name, ids: group.map(s => s.id) })),
+  };
+}
+
 export function defaultRoots() {
   const home = process.env.CODEX_HOME || path.join(os.homedir(), '.codex');
   return { skills: path.join(home, 'skills'), agentSkills: path.join(os.homedir(), '.agents', 'skills'), cache: path.join(home, 'plugins', 'cache') };
@@ -93,6 +107,6 @@ export async function scanInventory(roots = defaultRoots()) {
     }
   }
   skills.sort((a, b) => a.path.localeCompare(b.path));
-  return { mode: 'inventory', scannedAt: new Date().toISOString(), coverage, skills, issues, usage: null,
+  return { mode: 'inventory', scannedAt: new Date().toISOString(), coverage, skills, issues, comparisons: compareInstances(skills), usage: null,
     limits: ['仅扫描标准技能根目录的直接子目录；不递归扫描示例。', '符号链接跳过并记录。', '插件缓存不证明安装或启用；未解析项目技能、启停配置与使用日志。'] };
 }

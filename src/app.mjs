@@ -5,6 +5,7 @@ const search = document.querySelector('#search');
 const source = document.querySelector('#source');
 const evidence = document.querySelector('#evidence');
 const refresh = document.querySelector('#refresh');
+const comparisons = document.querySelector('#comparisons');
 let current = null;
 const app = new App({ name: 'codex-skill-manager', version: '0.0.1' }, {});
 const textNode = (tag, value) => { const node = document.createElement(tag); node.textContent = value; return node; };
@@ -30,6 +31,20 @@ function receive(result) {
     list.replaceChildren(); return;
   }
   current = data;
+  const groups = data.comparisons;
+  comparisons.replaceChildren(textNode('p', '仅比较 SKILL.md 文本，未比较附带脚本和资源。相同内容不代表可安全删除；同名不同内容也可能是正常版本差异。'));
+  if (groups) {
+    comparisons.append(textNode('p', `${groups.identicalDocuments.length} 组相同文档 · ${groups.nameConflicts.length} 组同名不同内容`));
+    const byId = new Map(data.skills.map(s => [s.id, s]));
+    for (const [label, items] of [['相同文档', groups.identicalDocuments], ['同名不同内容', groups.nameConflicts]]) {
+      for (const group of items) {
+        const detail = document.createElement('details');
+        detail.append(textNode('summary', `${label}：${group.name || group.fingerprint.slice(0, 12)} · ${group.ids.length} 个实例`));
+        for (const id of group.ids) detail.append(textNode('p', byId.get(id)?.path || '未解析实例'));
+        comparisons.append(detail);
+      }
+    }
+  } else comparisons.append(textNode('p', '当前服务尚未提供比较结果，重新加载服务后可查看。'));
   source.replaceChildren(textNode('option', '全部来源'), ...[...new Set(data.skills.map(s => s.source))].map(s => { const option = textNode('option', s); option.value = s; return option; }));
   source.options[0].value = '';
   evidence.replaceChildren(...data.limits.map(s => textNode('p', s)), ...data.coverage.map(s => textNode('p', `范围：${s.path}`)), ...data.issues.map(s => textNode('p', `${s.reason}：${s.path}`)));
