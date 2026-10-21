@@ -28,6 +28,10 @@ function render() {
     if (skill.owner) details.append(textNode('p', `${skill.owner.marketplace} / ${skill.owner.name} / ${skill.owner.version}`), textNode('p', `归属证据：${skill.owner.manifest}`));
     if (skill.pluginStatus) details.append(textNode('p', `安装核对：${skill.pluginStatus.evidence} · ${skill.pluginStatus.checkedAt} · ${skill.pluginStatus.id}`));
     item.append(textNode('h2', skill.name), textNode('p', `${skill.source} · ${skill.state}`), textNode('p', skill.description), details);
+    if (current.usage?.instances) {
+      const summary = current.usage.instances.find(entry => entry.id === skill.id);
+      item.append(textNode('p', summary ? `当前统计期间：显式标记 ${summary.explicitMarkers} · 读取请求 ${summary.readRequests} · 最近信号 ${summary.lastSignalAt || '时间未知'}` : '当前统计期间未观察到唯一归属此实例的信号；不代表从未使用。'));
+    }
     if (current.managementSupported && ['用户技能', '用户 .agents 技能'].includes(skill.source)) {
       const button = textNode('button', '预览归档'); button.type = 'button';
       button.addEventListener('click', () => preview('preview_skill_archive', { skillId: skill.id }));
@@ -64,6 +68,7 @@ function receive(result) {
   usage.replaceChildren();
   if (data.usage) {
     const u = data.usage, c = u.coverage;
+    if (u.instances) usage.append(textNode('p', `有唯一归属信号的文件实例：${u.instances.length} 个（两类信号去重计数；不是逻辑技能总数）`));
     usage.append(textNode('p', `统计期间：${u.period?.from || '不限起点'} 至 ${u.period?.to || '不限终点'}（ISO 时间，终点不含）`));
     usage.append(textNode('p', `已索引 ${c.indexedFiles} / ${c.discoveredFiles} 个发现的日志 · 待处理 ${c.pendingBytes.toLocaleString()} 字节 · 上次导入读取 ${c.bytesRead.toLocaleString()} 字节`));
     usage.append(textNode('p', `已读记录时间范围：${c.from || '未知'} 至 ${c.to || '未知'} · 更新于 ${c.checkedAt}`));

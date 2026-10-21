@@ -134,9 +134,19 @@ export function aggregateUsage(events, skills, period = {}) {
     accepted.push({ ...event, locations, candidateIds: candidates.map(s => s.id), resolution: candidates.length === 1 ? 'resolved' : candidates.length ? 'ambiguous' : 'unresolved' });
   }
   const counts = {};
+  const instances = new Map();
+  for (const event of accepted) {
+    if (event.resolution !== 'resolved') continue;
+    const id = event.candidateIds[0];
+    if (!instances.has(id)) instances.set(id, { id, explicitMarkers: 0, readRequests: 0, lastSignalAt: null });
+    const summary = instances.get(id);
+    if (event.kind === 'explicit-marker') summary.explicitMarkers++;
+    if (event.kind === 'read-request') summary.readRequests++;
+    if (event.timestamp && Number.isFinite(Date.parse(event.timestamp)) && (!summary.lastSignalAt || Date.parse(event.timestamp) > Date.parse(summary.lastSignalAt))) summary.lastSignalAt = event.timestamp;
+  }
   for (const kind of ['explicit-marker', 'read-request']) {
     const group = accepted.filter(e => e.kind === kind);
     counts[kind] = { events: group.length, uniqueReferences: new Set(group.map(e => e.reference)).size, resolvedInstances: new Set(group.filter(e => e.resolution === 'resolved').map(e => e.candidateIds[0])).size };
   }
-  return { events: accepted, counts, period: { from: from === null ? null : new Date(from).toISOString(), to: to === null ? null : new Date(to).toISOString() }, limits: ['生成子会话（含审批审查）不计使用信号；来源不明的日志仅按可识别结构过滤。', '过滤已识别的变量语法，裸标记仍可能是讨论或变量，不能作为确定执行次数。', '显式标记仅表示调用意图；可能仍为讨论，不证明执行成功。', '读取请求是推断信号，不证明读取成功或技能实际执行。', '同一会话同一轮的相同路径读取合并；有稳定 ID 的重放去重，无 ID 时只能按来源行去重。', '仅支持独立 Get-Content/cat 和静态 tools.exec_command 调用；动态脚本、条件分支等不推断。', '未解析宿主激活和 Agent 自报，不将其他信号替代它们。', '同名多实例保留歧义；没有观察到信号不代表从未使用。'] };
+  return { events: accepted, counts, instances: [...instances.values()], period: { from: from === null ? null : new Date(from).toISOString(), to: to === null ? null : new Date(to).toISOString() }, limits: ['生成子会话（含审批审查）不计使用信号；来源不明的日志仅按可识别结构过滤。', '过滤已识别的变量语法，裸标记仍可能是讨论或变量，不能作为确定执行次数。', '显式标记仅表示调用意图；可能仍为讨论，不证明执行成功。', '读取请求是推断信号，不证明读取成功或技能实际执行。', '同一会话同一轮的相同路径读取合并；有稳定 ID 的重放去重，无 ID 时只能按来源行去重。', '仅支持独立 Get-Content/cat 和静态 tools.exec_command 调用；动态脚本、条件分支等不推断。', '未解析宿主激活和 Agent 自报，不将其他信号替代它们。', '同名多实例保留歧义；没有观察到信号不代表从未使用。'] };
 }

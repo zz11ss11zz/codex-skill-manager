@@ -87,3 +87,14 @@ test('unknown timestamps remain in all-time counts but are excluded from bounded
   assert.equal(aggregateUsage(events,skills).counts['explicit-marker'].events,1);
   assert.equal(aggregateUsage(events,skills,{from:'2026-01-01T00:00:00Z'}).counts['explicit-marker'].events,0);
 });
+
+test('per-instance summaries count unique attribution only across signal kinds and respect periods', () => {
+  const p=parser();
+  const events=[...p.accept(message('m','$demo $same $missing'),'log',3),...p.accept(read('r','Get-Content demo/SKILL.md'),'log',4)];
+  const result=aggregateUsage(events,skills);
+  assert.deepEqual(result.instances,[{id:'a',explicitMarkers:1,readRequests:1,lastSignalAt:'2026-01-01T00:01:00Z'}]);
+  const bounded=aggregateUsage(events,skills,{from:'2026-01-01T00:00:30Z'});
+  assert.deepEqual(bounded.instances,[{id:'a',explicitMarkers:0,readRequests:1,lastSignalAt:'2026-01-01T00:01:00Z'}]);
+  const unknown=message('unknown','$demo'); delete unknown.timestamp;
+  assert.equal(aggregateUsage(p.accept(unknown,'log',5),skills).instances[0].lastSignalAt,null);
+});
