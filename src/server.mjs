@@ -10,8 +10,11 @@ import { ArchiveManager } from './archive.mjs';
 import { z } from 'zod';
 
 export function createServer(roots, { queryPlugins = loadPluginStatus, usageIndex = new UsageIndex(), archiveManager = new ArchiveManager({ roots }) } = {}) {
+let pluginSnapshot = null, usageSnapshot = null;
 async function inventoryWithArchives() {
-  const inventory = await scanInventory(roots);
+  let inventory = await scanInventory(roots);
+  if (pluginSnapshot) inventory = applyPluginStatus(inventory, pluginSnapshot);
+  inventory.usage = usageSnapshot;
   inventory.managementSupported = process.platform === 'win32';
   try { inventory.archives = await archiveManager.list(); }
   catch { inventory.archives = []; inventory.issues.push({ path: archiveManager.archiveRoot, reason: '归档记录无法读取' }); }
@@ -34,7 +37,7 @@ server.registerTool('open_skill_manager', {
   _meta: { ui: { resourceUri: uri }, 'openai/ui': { entrypoints: [{ type: 'global' }] } },
 }, async () => {
   const inventory = await inventoryWithArchives();
-  return { content: [{ type: 'text', text: `发现 ${inventory.skills.length} 个技能文件实例；${inventory.issues.length} 个扫描问题。启用状态与使用统计尚未核实。` }], structuredContent: inventory };
+  return { content: [{ type: 'text', text: `发现 ${inventory.skills.length} 个技能文件实例；${inventory.issues.length} 个扫描问题。安装和使用信号按各自核对时间展示。` }], structuredContent: inventory };
 });
 server.registerTool('check_plugin_status', {
   title: '核对插件安装状态',
@@ -44,7 +47,8 @@ server.registerTool('check_plugin_status', {
 }, async () => {
   try {
     const status = await queryPlugins();
-    const inventory = applyPluginStatus(await inventoryWithArchives(), status);
+    pluginSnapshot = status;
+    const inventory = await inventoryWithArchives();
     return { content: [{ type: 'text', text: `已读取 ${status.plugins.length} 条插件安装记录；未匹配缓存不等于未安装。` }], structuredContent: inventory };
   } catch {
     return { isError: true, content: [{ type: 'text', text: '无法读取插件安装清单。请检查 Codex CLI 是否可用、登录环境和网络；保留现有清单，不推断安装状态。' }] };
@@ -58,7 +62,8 @@ server.registerTool('import_usage', {
 }, async () => {
   try {
     const inventory = await inventoryWithArchives();
-    inventory.usage = await usageIndex.refresh(inventory.skills);
+    usageSnapshot = await usageIndex.refresh(inventory.skills);
+    inventory.usage = usageSnapshot;
     return { content: [{ type: 'text', text: `已索引 ${inventory.usage.coverage.indexedFiles} 个日志文件；剩余 ${inventory.usage.coverage.pendingBytes} 字节尚未处理。信号不等于成功执行次数。` }], structuredContent: inventory };
   } catch {
     return { isError: true, content: [{ type: 'text', text: '导入失败，保留之前的索引。请检查日志权限、本地索引格式或是否已有导入占用；恢复方法见仓库本地验证文档。' }] };

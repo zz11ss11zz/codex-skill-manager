@@ -92,10 +92,12 @@ function receive(result) {
       }
     }
   } else comparisons.append(textNode('p', '当前服务尚未提供比较结果，重新加载服务后可查看。'));
+  const previousSource = source.value;
   source.replaceChildren(textNode('option', '全部来源'), ...[...new Set(data.skills.map(s => s.source))].map(s => { const option = textNode('option', s); option.value = s; return option; }));
   source.options[0].value = '';
+  if ([...source.options].some(option => option.value === previousSource)) source.value = previousSource;
   evidence.replaceChildren(...data.limits.map(s => textNode('p', s)), ...data.coverage.map(s => textNode('p', `范围：${s.path}`)), ...data.issues.map(s => textNode('p', `${s.reason}：${s.path}`)));
-  if (data.pluginRegistry) evidence.prepend(textNode('p', `插件安装记录：${data.pluginRegistry.plugins.length} 条 · ${data.pluginRegistry.checkedAt}。以当前 CLI 用户环境为准；未匹配不证明未安装。重新扫描将清除本次核对结果。`));
+  if (data.pluginRegistry) evidence.prepend(textNode('p', `插件安装记录：${data.pluginRegistry.plugins.length} 条 · ${data.pluginRegistry.checkedAt}。以当前 CLI 用户环境为准；未匹配不证明未安装。普通扫描保留该次核对快照，不自动重新查询。`));
   render();
 }
 async function managementCall(name, args) {

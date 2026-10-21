@@ -151,7 +151,7 @@ export class UsageIndex {
       if (Buffer.byteLength(serialized) > 64 * 1024 * 1024) throw new Error('本地索引达到 64 MiB 限制，保留此前索引');
       await writeFile(temporary, serialized, { flag: 'wx', mode: 0o600 });
       await rename(temporary, stateFile);
-      return { ...usage, events: usage.events.slice(-100), totalEvents: usage.events.length, coverage, limits: [...usage.limits, '每次最多读取 32 MiB；待处理字节可能包含尚未写完的末行。重复点击可继续导入。', '按追加日志处理，检测截断、文件身份和首尾边界变化；不对已读中段作完整校验。', '界面仅返回最近导入顺序的 100 条证据；计数包含已索引全部信号。', '索引只保存信号、定位与读到的位置，不保存聊天正文。'] };
+      return { ...usage, events: usage.events.slice(-100), totalEvents: usage.events.length, coverage, limits: [...usage.limits, '每次最多读取 32 MiB；待处理字节可能包含尚未写完的末行。重复点击可继续导入。', '按追加日志处理，检测截断、文件身份和首尾边界变化；不对已读中段作完整校验。', '界面仅返回最近导入顺序的 100 条证据；计数包含已索引全部信号。', '统计与归属以最近一次导入时的清单为准；普通扫描保留快照，不读取新日志。', '索引只保存信号、定位与读到的位置，不保存聊天正文。'] };
     } finally { await unlink(temporary).catch(() => {}); await lock.close(); await unlink(lockFile); }
   }
 }
