@@ -8,8 +8,9 @@ import { loadPluginStatus, applyPluginStatus } from './plugins.mjs';
 import { UsageIndex } from './usage-index.mjs';
 import { ArchiveManager } from './archive.mjs';
 import { z } from 'zod';
+import { SkillNotes } from './skill-notes.mjs';
 
-export function createServer(roots, { queryPlugins = loadPluginStatus, usageIndex = new UsageIndex(), archiveManager = new ArchiveManager({ roots }) } = {}) {
+export function createServer(roots, { queryPlugins = loadPluginStatus, usageIndex = new UsageIndex(), archiveManager = new ArchiveManager({ roots }), skillNotes = new SkillNotes() } = {}) {
 let pluginSnapshot = null, usageSnapshot = null;
 let usagePeriod = {};
 async function inventoryWithArchives() {
@@ -17,6 +18,14 @@ async function inventoryWithArchives() {
   if (pluginSnapshot) inventory = applyPluginStatus(inventory, pluginSnapshot);
   inventory.usage = usageSnapshot;
   inventory.managementSupported = process.platform === 'win32';
+  try {
+    const notes = await skillNotes.read();
+    inventory.notesAvailable = true;
+    for (const skill of inventory.skills) {
+      const entry = notes.entries[skill.id];
+      if (entry) skill.annotation = { ...entry, contentChanged: entry.fingerprint !== skill.fingerprint };
+    }
+  } catch { inventory.notesAvailable = false; inventory.issues.push({ path: skillNotes.file, reason: '本地备注无法读取，已保留原文件并禁用编辑' }); }
   try { inventory.archives = await archiveManager.list(); }
   catch { inventory.archives = []; inventory.issues.push({ path: archiveManager.archiveRoot, reason: '归档记录无法读取' }); }
   return inventory;
@@ -83,6 +92,18 @@ server.registerTool('query_usage', {
   } catch { return { isError: true, content: [{ type: 'text', text: '查询失败。请检查时间范围，并先导入一次使用信号更新索引；原结果保留。' }] }; }
 });
 const managementError = error => ({ isError: true, content: [{ type: 'text', text: error.code ? '文件操作失败，请检查路径权限及操作记录；未确认成功。' : error.message }] });
+server.registerTool('save_skill_note', {
+  title: '保存技能保留备注', description: '保存用户提供的本地备注和保留标记，不修改技能文件或启停状态。需基于当前文件指纹和备注版本，冲突时拒绝覆盖。',
+  inputSchema: { id: z.string().regex(/^[a-f0-9]{64}$/), fingerprint: z.string().regex(/^[a-f0-9]{64}$/), note: z.string().max(1000), retain: z.boolean(), expectedRevision: z.number().int().nonnegative() },
+  annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
+}, async args => {
+  try {
+    const current = (await scanInventory(roots)).skills.find(s => s.id === args.id);
+    if (!current || current.fingerprint !== args.fingerprint) throw new Error('技能内容已变化或不存在，请重新扫描后编辑');
+    await skillNotes.save(args);
+    return { content: [{ type: 'text', text: '本地备注已保存；技能内容和启停状态不变。' }], structuredContent: await inventoryWithArchives() };
+  } catch (error) { return managementError(error); }
+});
 server.registerTool('preview_skill_archive', {
   title: '预览用户技能归档', description: '只读预览用户技能目录的归档范围与影响，不执行移动。系统和插件内容不可归档。',
   inputSchema: { skillId: z.string().regex(/^[0-9a-f]{64}$/) }, annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },

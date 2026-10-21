@@ -10,6 +10,7 @@ import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import { createServer } from '../src/server.mjs';
 import { ArchiveManager } from '../src/archive.mjs';
 import { UsageIndex } from '../src/usage-index.mjs';
+import { SkillNotes } from '../src/skill-notes.mjs';
 
 const temporary = await mkdtemp(path.join(os.tmpdir(), 'skill-manager-ui-'));
 const roots = { skills: path.join(temporary, 'skills'), cache: path.join(temporary, 'cache') };
@@ -22,6 +23,7 @@ await file('cache/test-market/plugin-demo/1/.codex-plugin/plugin.json', JSON.str
 await file('cache/test-market/plugin-demo/1/skills/chart-demo/SKILL.md', markdown('chart-demo', '合成示例：图表绘制与数据展示'));
 await file('logs/demo.jsonl', JSON.stringify({ type: 'response_item', timestamp: '2026-01-01T00:00:00Z', payload: { type: 'message', id: 'demo-message', role: 'user', content: [{ type: 'input_text', text: '$report-demo' }] } }) + '\n');
 const service = createServer(roots, {
+  skillNotes: new SkillNotes(path.join(temporary, 'notes.json')),
   archiveManager: new ArchiveManager({ roots, archiveRoot: path.join(temporary, 'archive') }),
   usageIndex: new UsageIndex({ roots: [path.join(temporary, 'logs')], stateFile: path.join(temporary, 'index', 'usage.json') }),
   queryPlugins: async () => ({ checkedAt: new Date().toISOString(), evidence: 'synthetic CLI result', plugins: [{ id: 'plugin-demo@test-market', version: '1', enabled: true }] }),

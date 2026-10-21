@@ -19,12 +19,12 @@ test('stdio handshake, global discovery, resource and isolated inventory result'
   await writeFile(path.join(logs, 'synthetic.jsonl'), JSON.stringify({ type: 'response_item', payload: { type: 'message', id: 'synthetic', role: 'user', content: [{ type: 'input_text', text: '$example' }] } }) + '\n');
   const usageOptions = { roots: [logs], stateFile: path.join(root, 'index', 'usage.json') };
   const archiveOptions = { roots, archiveRoot: path.join(root, 'archive') };
-  const code = `import {createServer} from ${JSON.stringify(new URL('../src/server.mjs', import.meta.url).href)}; import {UsageIndex} from ${JSON.stringify(new URL('../src/usage-index.mjs', import.meta.url).href)}; import {ArchiveManager} from ${JSON.stringify(new URL('../src/archive.mjs', import.meta.url).href)}; import {StdioServerTransport} from '@modelcontextprotocol/sdk/server/stdio.js'; let queries = 0; await createServer(${JSON.stringify(roots)}, {archiveManager: new ArchiveManager(${JSON.stringify(archiveOptions)}), usageIndex: new UsageIndex(${JSON.stringify(usageOptions)}), queryPlugins: async () => { if (queries++) throw new Error('synthetic failure'); return {plugins: [], checkedAt: '2026-01-01T00:00:00Z', evidence: 'synthetic'}; }}).connect(new StdioServerTransport());`;
+  const code = `import {createServer} from ${JSON.stringify(new URL('../src/server.mjs', import.meta.url).href)}; import {UsageIndex} from ${JSON.stringify(new URL('../src/usage-index.mjs', import.meta.url).href)}; import {SkillNotes} from ${JSON.stringify(new URL('../src/skill-notes.mjs', import.meta.url).href)}; import {ArchiveManager} from ${JSON.stringify(new URL('../src/archive.mjs', import.meta.url).href)}; import {StdioServerTransport} from '@modelcontextprotocol/sdk/server/stdio.js'; let queries = 0; await createServer(${JSON.stringify(roots)}, {skillNotes: new SkillNotes(${JSON.stringify(path.join(root, 'notes.json'))}), archiveManager: new ArchiveManager(${JSON.stringify(archiveOptions)}), usageIndex: new UsageIndex(${JSON.stringify(usageOptions)}), queryPlugins: async () => { if (queries++) throw new Error('synthetic failure'); return {plugins: [], checkedAt: '2026-01-01T00:00:00Z', evidence: 'synthetic'}; }}).connect(new StdioServerTransport());`;
   const transport = new StdioClientTransport({ command: process.execPath, args: ['--input-type=module', '-e', code], cwd: fileURLToPath(new URL('..', import.meta.url)), stderr: 'pipe' });
   try {
     await client.connect(transport);
     const { tools } = await client.listTools();
-    assert.equal(tools.length, 8);
+    assert.equal(tools.length, 9);
     assert.deepEqual(tools[0]._meta['openai/ui'].entrypoints, [{ type: 'global' }]);
     const uri = tools[0]._meta.ui.resourceUri;
     const { contents } = await client.readResource({ uri });
@@ -40,6 +40,15 @@ test('stdio handshake, global discovery, resource and isolated inventory result'
     assert.equal(result.structuredContent.usage, null);
     assert.equal(result.structuredContent.skills.length, 1);
     assert.equal(result.structuredContent.skills[0].name, 'example');
+    const skill = result.structuredContent.skills[0];
+    const noteArgs = { id: skill.id, fingerprint: skill.fingerprint, note: 'synthetic retention reason', retain: true, expectedRevision: 0 };
+    const noted = await client.callTool({ name: 'save_skill_note', arguments: noteArgs });
+    assert.equal(noted.structuredContent.skills[0].annotation.note, noteArgs.note);
+    assert.equal(noted.structuredContent.skills[0].annotation.contentChanged, false);
+    assert.equal((await client.callTool({ name: 'save_skill_note', arguments: noteArgs })).isError, true);
+    assert.equal((await client.callTool({ name: 'save_skill_note', arguments: { ...noteArgs, fingerprint: '0'.repeat(64), expectedRevision: 1 } })).isError, true);
+    await appendFile(path.join(root, 'skills', 'example', 'SKILL.md'), '\nupdated synthetic content');
+    assert.equal((await client.callTool({ name: 'open_skill_manager', arguments: {} })).structuredContent.skills[0].annotation.contentChanged, true);
     const checked = await client.callTool({ name: 'check_plugin_status', arguments: {} });
     assert.deepEqual(checked.structuredContent.pluginRegistry.plugins, []);
     const failed = await client.callTool({ name: 'check_plugin_status', arguments: {} });

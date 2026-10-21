@@ -32,6 +32,27 @@ function render() {
       const summary = current.usage.instances.find(entry => entry.id === skill.id);
       item.append(textNode('p', summary ? `当前统计期间：显式标记 ${summary.explicitMarkers} · 读取请求 ${summary.readRequests} · 最近信号 ${summary.lastSignalAt || '时间未知'}` : '当前统计期间未观察到唯一归属此实例的信号；不代表从未使用。'));
     }
+    if (current.notesAvailable) {
+      const annotation = skill.annotation;
+      if (annotation?.retain) item.append(textNode('p', '已标记：低频仍需保留（提醒，不改变启停或归档权限）'));
+      if (annotation?.contentChanged) item.append(textNode('p', '技能内容已变化，旧备注需重新核对。'));
+      const editor = document.createElement('details'); editor.append(textNode('summary', '本地保留备注'));
+      const noteLabel = textNode('label', '保留原因或用途区别（最多 1000 字）');
+      const note = document.createElement('textarea'); note.maxLength = 1000; note.value = annotation?.note || ''; noteLabel.append(note);
+      const retainLabel = textNode('label', '低频仍需保留');
+      const retain = document.createElement('input'); retain.type = 'checkbox'; retain.checked = annotation?.retain || false; retainLabel.prepend(retain);
+      const save = textNode('button', '保存备注'); save.type = 'button';
+      const feedback = textNode('p', '仅保存在本机，不写入 SKILL.md。'); feedback.setAttribute('role', 'status');
+      save.addEventListener('click', async () => {
+        setBusy(true);
+        try {
+          receive(await managementCall('save_skill_note', { id: skill.id, fingerprint: skill.fingerprint, note: note.value, retain: retain.checked, expectedRevision: annotation?.revision || 0 }));
+          managementStatus.textContent = '本地保留备注已保存。';
+        } catch (error) { feedback.textContent = error.message; }
+        finally { setBusy(false); }
+      });
+      editor.append(noteLabel, retainLabel, save, feedback); item.append(editor);
+    }
     if (current.managementSupported && ['用户技能', '用户 .agents 技能'].includes(skill.source)) {
       const button = textNode('button', '预览归档'); button.type = 'button';
       button.addEventListener('click', () => preview('preview_skill_archive', { skillId: skill.id }));
