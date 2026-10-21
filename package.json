@@ -10,8 +10,12 @@
   "scripts": {
     "build": "node scripts/build.mjs",
     "start": "node src/server.mjs",
-    "test": "npm run build && node --test"
+    "test": "npm run build && node --test",
+    "setup:check": "node scripts/setup.mjs check",
+    "setup:install": "node scripts/setup.mjs install",
+    "setup:uninstall": "node scripts/setup.mjs uninstall"
   },
+  "files": ["src", "scripts", "test", "docs", "dist/dashboard.html", "README.md"],
   "dependencies": {
     "@modelcontextprotocol/ext-apps": "1.7.5",
     "@modelcontextprotocol/sdk": "1.32.1",

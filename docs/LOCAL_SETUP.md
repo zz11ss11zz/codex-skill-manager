@@ -1,27 +1,31 @@
-# 本地侧栏原型验证
+# 本地安装与验证
 
-目前采用 Codex 原生 MCP 注册验证入口，尚未提供插件市场安装包。这一步验证当前桌面版本是否发现 global 入口；通过前不宣称侧栏可用。
+目前采用 Codex 原生 MCP 注册，尚未提供插件市场安装包。当前桌面版本的侧栏入口和真实清单显示已验证；后续统计与管理按钮仍待宿主交互验收。
 
-## Windows 开发安装
+## Windows 安装
 
 先在仓库根目录运行：
 
 ```powershell
 npm.cmd ci --ignore-scripts
 npm.cmd test
-$nodeExecutable = (Get-Command node).Source
-$managerEntry = (Resolve-Path ./src/server.mjs).Path
-codex mcp add codex-skill-manager -- $nodeExecutable $managerEntry
-codex mcp get codex-skill-manager
+npm.cmd run setup:install
+npm.cmd run setup:check
 ```
 
-不要删除或移动此工作目录；配置引用其中的服务和构建产物。原型只读扫描技能元数据和插件 manifest，不读取会话或凭据，不需要 API 密钥。更新服务代码后需要重新加载 MCP 服务；可通过退出并重开桌面应用完成。
+需要 Node.js 20+ 和可用的 Codex CLI。不需要 API 密钥。安装脚本先构建页面，再通过官方 CLI 注册绝对 Node 与入口路径；同名但不同命令/目录的注册会拒绝覆盖。同一路径重复安装不改写现有设置，若已有注册停用，脚本保留其停用状态。
+
+不要删除或移动此工作目录；配置引用其中的服务和构建产物。普通扫描仅读取技能和 manifest，日志导入与归档操作均需单独触发。更新服务代码后需要重新加载 MCP 服务；可通过退出并重开桌面应用完成。
+
+## 原目录升级
+
+在原目录获取新版代码后运行 `npm.cmd ci --ignore-scripts`、`npm.cmd test`、`npm.cmd run setup:install`，然后重新加载服务并从侧栏重新打开面板。代码更新不删除 `.local` 索引或独立归档目录。如果改换目录或 Node 可执行文件，先核对旧注册，再从旧安装位置卸载注册后安装新位置，不强制覆盖其他同名服务。
 
 ## 宿主验收
 
 保存当前工作后退出并重新打开 Codex 桌面应用。检查侧栏是否能找到“能力管理器”或对应服务入口。记录：是否出现、是否能固定、点击能否显示页面、页面是否收到真实清单、再次重启是否保留。
 
-更新时先运行 `npm.cmd test` 完成构建，再重新加载服务；关闭旧能力管理器面板，从侧栏重新打开。当前 UI 资源地址含页面内容哈希，构建变化会产生新地址。如果仍看到 `PROTOTYPE` 而不是 `READ ONLY`，说明旧页面或旧服务仍在使用，不能视为升级成功。
+更新时先完成构建，再重新加载服务；关闭旧能力管理器面板，从侧栏重新打开。当前 UI 资源地址含页面内容哈希，构建变化会产生新地址。如果仍看到 `PROTOTYPE`，说明旧页面或旧服务仍在使用，不能视为升级成功。
 
 加入归档功能后的页面标题标识为 `LOCAL`，同时显示“扫描只读”和“归档与恢复记录”。`READ ONLY` 是此前清单版的标识；不要只凭标题判断所有新工具均已加载。
 
@@ -29,13 +33,26 @@ codex mcp get codex-skill-manager
 
 本地注册命令不会自动重启桌面应用。重启由用户执行，避免中断其他进行中的工作。
 
-## 撤销开发安装
+## 卸载注册
 
 ```powershell
-codex mcp remove codex-skill-manager
+npm.cmd run setup:uninstall
 ```
 
-然后重启桌面应用。该命令只移除服务配置，不删除项目文件。安装、查询和移除必须在同一用户配置环境中运行。
+然后重启桌面应用。该命令只移除与当前目录匹配的服务配置，不删除项目文件、`.local` 索引或归档文件。安装、查询和移除必须在同一用户配置环境中运行。若原目录已丢失，可先用 `codex mcp get codex-skill-manager` 核对，再用官方 `codex mcp remove codex-skill-manager` 移除该注册。
+
+## 验证范围
+
+| 项目 | 当前证据 |
+| --- | --- |
+| Windows / Node 20.18.1 | 构建、协议、文件管理及增量导入测试通过 |
+| 临时 Codex 配置安装/重复安装/卸载 | 官方 CLI 实测通过；无关配置保持 |
+| 实际桌面侧栏 | 入口及真实清单显示已核；最新按钮交互待验 |
+| 原目录完整升级与宿主重启 | 资源地址版本机制已测；最新版端到端仍待验 |
+| macOS / Linux | 未验证；归档执行明确不支持 |
+| 插件市场安装包 | 尚未提供，当前是 MCP 注册 |
+
+可选 CLI 回归测试在临时配置中运行：`$env:SKILL_MANAGER_TEST_CODEX='1'; npm.cmd test`。未设置该测试开关时跳过 CLI 注册测试，其余测试仍运行；测试不会写入用户实际 Codex 配置。
 
 ## 使用信号索引
 

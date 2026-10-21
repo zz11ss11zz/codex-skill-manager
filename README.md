@@ -40,7 +40,7 @@
 | B：只读清单和归属 | 真实页面显示已验；安装核对已开发，交互待验 |
 | C：使用记录和统计 | 增量索引与 MCP 统计已接入；本机受限导入通过，宿主交互待验 |
 | D：整理建议及可回退管理 | 重复候选、Windows 用户技能归档与恢复已实现并测试；宿主交互待验 |
-| E：Windows 安装、升级和卸载 | 待开发 |
+| E：Windows 安装、升级和卸载 | 注册脚本与隔离 CLI 测试通过；完整宿主升级与交互待验 |
 
 ## 隐私边界
 
@@ -53,7 +53,8 @@
 ```sh
 npm ci --ignore-scripts
 npm test
-npm start
+npm run setup:install
+npm run setup:check
 ```
 
 `npm test` 构建 UI 并使用合成临时目录进行扫描器和 stdio MCP 集成测试。`npm start` 运行等待 MCP 客户端连接的进程，不会打开网页。工具调用时只读扫描用户、系统技能目录与插件缓存中的技能元数据；不读取聊天或凭据。构建后的 UI 通过带内容哈希的 `ui://codex-skill-manager/dashboard-<hash>.html` 资源提供，入口工具为 `open_skill_manager`。页面升级后需重新加载服务并从侧栏重新打开，详见本地验证步骤。
@@ -68,10 +69,10 @@ npm start
 
 Windows 用户技能可点击“预览归档”，检查文件数、体积、原位置和归档位置，再点“执行归档”。归档将整个目录移动至 `CODEX_HOME/skill-manager-archive/<id>/skill`，保留操作记录；可从归档列表预览并恢复。原位置已有内容时拒绝覆盖。预览十分钟过期、取消即失效；执行前后核对全部文件指纹。系统技能和插件缓存不可归档；含链接、超过 50 MiB 或 10000 项的目录暂不支持。归档不能撤回已运行会话加载的内容，不自动修改启停配置。
 
-原型使用维护中的 MCP SDK v1 与匹配的 MCP Apps SDK v1，锁定依赖版本。Node.js 避免首个侧栏验证引入额外 Python 环境；持久化与数据库选择留到真实数据阶段。宿主安装配置和插件包尚待实测，不应把协议测试通过当成可安装发布版。
+原型使用维护中的 MCP SDK v1 与匹配的 MCP Apps SDK v1，锁定依赖版本。Node.js 避免引入额外 Python 环境。安装脚本使用官方 CLI 注册，卸载只移除匹配的注册并保留运行数据。隔离 CLI 测试已通过；完整宿主升级和最新按钮交互仍待验证，不应把协议测试当作全部验收。
 
-见 [开发路线](docs/ROADMAP.md) 和 [验收记录](docs/VALIDATION.md)。安装命令将在真实验证后补充，不提供未验证的一键安装说明。
+见 [开发路线](docs/ROADMAP.md)、[验收记录](docs/VALIDATION.md) 和 [安装、升级、卸载与恢复](docs/LOCAL_SETUP.md)。打包采用文件白名单，排除本机索引、会话日志与归档；目前不发布 npm 包或插件市场安装包。
 
-开发者可按 [本地侧栏验证步骤](docs/LOCAL_SETUP.md) 注册 MCP 原型。示例入口已验证，更新后的清单 UI 仍需重新加载服务后验收。
+更新后需重新加载服务并从侧栏重新打开页面。当前已确认入口与真实清单显示，统计和管理交互仍待验收。
 
 官方 UI 协议参考：[Plugin Extensions](https://developers.openai.com/plugins/build/extensions)。声明 global 入口不等于宿主一定默认显示；实际兼容性以验收记录为准。
