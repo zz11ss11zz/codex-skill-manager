@@ -6,6 +6,7 @@ import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js'
 import { mkdtemp, mkdir, writeFile, rm } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
+import { createHash } from 'node:crypto';
 
 test('stdio handshake, global discovery, resource and isolated inventory result', { timeout: 15000 }, async () => {
   const root = await mkdtemp(path.join(os.tmpdir(), 'manager-protocol-'));
@@ -22,6 +23,9 @@ test('stdio handshake, global discovery, resource and isolated inventory result'
     assert.deepEqual(tools[0]._meta['openai/ui'].entrypoints, [{ type: 'global' }]);
     const uri = tools[0]._meta.ui.resourceUri;
     const { contents } = await client.readResource({ uri });
+    const revision = createHash('sha256').update(contents[0].text).digest('hex').slice(0, 16);
+    assert.equal(uri, `ui://codex-skill-manager/dashboard-${revision}.html`);
+    await assert.rejects(client.readResource({ uri: 'ui://codex-skill-manager/dashboard.html' }));
     assert.equal(contents[0].mimeType, 'text/html;profile=mcp-app');
     assert.match(contents[0].text, /只读清单/);
     assert.ok(!contents[0].text.includes('/* APP_BUNDLE */'));

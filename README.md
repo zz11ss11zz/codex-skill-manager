@@ -56,7 +56,7 @@ npm test
 npm start
 ```
 
-`npm test` 构建 UI 并使用合成临时目录进行扫描器和 stdio MCP 集成测试。`npm start` 运行等待 MCP 客户端连接的进程，不会打开网页。工具调用时只读扫描用户、系统技能目录与插件缓存中的技能元数据；不读取聊天或凭据。构建后的 UI 通过 `ui://codex-skill-manager/dashboard.html` 资源提供，入口工具为 `open_skill_manager`。
+`npm test` 构建 UI 并使用合成临时目录进行扫描器和 stdio MCP 集成测试。`npm start` 运行等待 MCP 客户端连接的进程，不会打开网页。工具调用时只读扫描用户、系统技能目录与插件缓存中的技能元数据；不读取聊天或凭据。构建后的 UI 通过带内容哈希的 `ui://codex-skill-manager/dashboard-<hash>.html` 资源提供，入口工具为 `open_skill_manager`。页面升级后需重新加载服务并从侧栏重新打开，详见本地验证步骤。
 
 当前按文件实例计数；保留同名和相同内容副本，不宣称它们是不同逻辑技能。插件缓存仅显示为候选，不能据此判断安装/启用状态。扫描范围与失败项均在界面中可查，符号链接跳过，使用统计暂未启用。默认扫描 `CODEX_HOME/skills`（未设置时为 `~/.codex/skills`）、`~/.agents/skills` 和 `CODEX_HOME/plugins/cache`。
 

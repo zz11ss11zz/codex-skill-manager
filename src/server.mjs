@@ -1,14 +1,19 @@
-import { readFile } from 'node:fs/promises';
+import { readFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { pathToFileURL } from 'node:url';
 import { scanInventory } from './inventory.mjs';
 
-const uri = 'ui://codex-skill-manager/dashboard.html';
 export function createServer(roots) {
+// Resource identity follows its content so hosts cannot reuse a previous UI build.
+// Keep the content immutable for the lifetime of this server instance.
+const html = readFileSync(new URL('../dist/dashboard.html', import.meta.url), 'utf8');
+const revision = createHash('sha256').update(html).digest('hex').slice(0, 16);
+const uri = `ui://codex-skill-manager/dashboard-${revision}.html`;
 const server = new McpServer({ name: 'codex-skill-manager', version: '0.0.1' });
 server.registerResource('dashboard', uri, { mimeType: 'text/html;profile=mcp-app' }, async () => ({
-  contents: [{ uri, mimeType: 'text/html;profile=mcp-app', text: await readFile(new URL('../dist/dashboard.html', import.meta.url), 'utf8') }],
+  contents: [{ uri, mimeType: 'text/html;profile=mcp-app', text: html }],
 }));
 server.registerTool('open_skill_manager', {
   title: '能力管理器',
