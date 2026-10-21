@@ -20,7 +20,12 @@ button{background:#245eaa;color:white;border:0;border-radius:6px;padding:10px 18
 <p>安装核对调用 Codex CLI，可能连接已配置的插件市场；不发送技能正文。普通扫描仅检查本地文件。</p>
 <button id="import-usage" type="button">增量导入本机使用信号</button>
 <p>仅读取本机 Codex 会话与归档日志，将信号和读取位置写入本项目 .local 索引，不保存聊天正文、不联网。每次最多读取 32 MiB。</p>
-<section aria-label="使用信号统计"><h2>使用信号</h2><div id="usage">尚未导入。不能据此判断从未使用。</div></section>
+<section aria-label="使用信号统计"><h2>使用信号</h2>
+<label for="usage-from">开始日期（含当天）</label><input id="usage-from" type="date">
+<label for="usage-to">结束日期（含当天）</label><input id="usage-to" type="date">
+<button id="query-usage" type="button">查询已有索引</button><button id="all-usage" type="button">全部已索引时间</button>
+<p>日期按当前浏览器本地时区解释；查询不导入新日志，计数覆盖全部已索引信号。</p>
+<div id="usage">尚未导入。不能据此判断从未使用。</div></section>
 <p id="status" role="status">正在连接 MCP 宿主…</p><ul id="skills" aria-label="技能文件清单"></ul>
 <details><summary>扫描范围、限制与问题</summary><div id="evidence"></div></details>
 <footer>当前按文件实例计数。同名与相同内容副本均保留；只有点击使用信号导入按钮才读取会话日志。</footer>

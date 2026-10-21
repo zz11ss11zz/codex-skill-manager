@@ -24,7 +24,7 @@ test('stdio handshake, global discovery, resource and isolated inventory result'
   try {
     await client.connect(transport);
     const { tools } = await client.listTools();
-    assert.equal(tools.length, 7);
+    assert.equal(tools.length, 8);
     assert.deepEqual(tools[0]._meta['openai/ui'].entrypoints, [{ type: 'global' }]);
     const uri = tools[0]._meta.ui.resourceUri;
     const { contents } = await client.readResource({ uri });
@@ -56,6 +56,16 @@ test('stdio handshake, global discovery, resource and isolated inventory result'
     assert.equal(scanned.structuredContent.usage.counts['explicit-marker'].events, 1);
     const continued = await client.callTool({ name: 'import_usage', arguments: {} });
     assert.equal(continued.structuredContent.usage.counts['explicit-marker'].events, 2);
+    const period = await client.callTool({ name: 'query_usage', arguments: { from: '2026-01-01T00:00:00Z' } });
+    assert.equal(period.structuredContent.usage.totalEvents, 0); // fixture timestamps are unknown
+    const withinPeriod = await client.callTool({ name: 'import_usage', arguments: {} });
+    assert.equal(withinPeriod.structuredContent.usage.totalEvents, 0);
+    assert.equal(withinPeriod.structuredContent.usage.period.from, '2026-01-01T00:00:00.000Z');
+    const allTime = await client.callTool({ name: 'query_usage', arguments: {} });
+    assert.equal(allTime.structuredContent.usage.totalEvents, 2);
+    const invalidPeriod = await client.callTool({ name: 'query_usage', arguments: { from: '2026-01-02T00:00:00Z', to: '2026-01-01T00:00:00Z' } });
+    assert.equal(invalidPeriod.isError, true);
+    assert.equal((await client.callTool({ name: 'open_skill_manager', arguments: {} })).structuredContent.usage.totalEvents, 2);
     const preview = await client.callTool({ name: 'preview_skill_archive', arguments: { skillId: result.structuredContent.skills[0].id } });
     assert.equal(preview.structuredContent.mode, 'management-plan');
     const cancelled = await client.callTool({ name: 'cancel_skill_plan', arguments: { token: preview.structuredContent.plan.token } });

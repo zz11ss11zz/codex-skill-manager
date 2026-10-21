@@ -64,13 +64,14 @@ function receive(result) {
   usage.replaceChildren();
   if (data.usage) {
     const u = data.usage, c = u.coverage;
-    usage.append(textNode('p', `已索引 ${c.indexedFiles} / ${c.discoveredFiles} 个发现的日志 · 待处理 ${c.pendingBytes.toLocaleString()} 字节 · 本次读取 ${c.bytesRead.toLocaleString()} 字节`));
+    usage.append(textNode('p', `统计期间：${u.period?.from || '不限起点'} 至 ${u.period?.to || '不限终点'}（ISO 时间，终点不含）`));
+    usage.append(textNode('p', `已索引 ${c.indexedFiles} / ${c.discoveredFiles} 个发现的日志 · 待处理 ${c.pendingBytes.toLocaleString()} 字节 · 上次导入读取 ${c.bytesRead.toLocaleString()} 字节`));
     usage.append(textNode('p', `已读记录时间范围：${c.from || '未知'} 至 ${c.to || '未知'} · 更新于 ${c.checkedAt}`));
     for (const [kind, label] of [['explicit-marker', '显式标记（意图）'], ['read-request', '读取请求（推断）']]) {
       const count = u.counts[kind];
       usage.append(textNode('p', `${label}：${count.events} 个信号 · ${count.uniqueReferences} 个不同引用 · ${count.resolvedInstances} 个唯一归属的文件实例`));
     }
-    usage.append(textNode('p', `坏行 ${c.malformedLines} · 超长跳过 ${c.oversizedLines} · 本次重建 ${c.resets} · 读取问题 ${c.issues.length}。有剩余字节时可再次导入；末行尚未写完时需等待日志继续写入。`));
+    usage.append(textNode('p', `坏行 ${c.malformedLines} · 超长跳过 ${c.oversizedLines} · 上次导入重建 ${c.resets} · 读取问题 ${c.issues.length}。有剩余字节时可再次导入；末行尚未写完时需等待日志继续写入。`));
     usage.append(textNode('p', `已排除 ${c.excludedSessionFiles || 0} 个生成子会话的使用信号（含审批审查）。${c.rebuiltForParser ? '旧索引已备份，新规则已开始从头解析；此前计数不再沿用。' : ''}`));
     const details = document.createElement('details');
     details.append(textNode('summary', `证据与统计限制（展示 ${u.events.length} / ${u.totalEvents} 条）`));
@@ -161,5 +162,22 @@ importUsage.addEventListener('click', async () => {
   finally { setBusy(false); }
 });
 search.addEventListener('input', render);
+async function queryUsage(all = false) {
+  const fromInput = document.querySelector('#usage-from'), toInput = document.querySelector('#usage-to');
+  const args = {};
+  if (!all) {
+    if (fromInput.value) args.from = new Date(`${fromInput.value}T00:00:00`).toISOString();
+    if (toInput.value) { const end = new Date(`${toInput.value}T00:00:00`); end.setDate(end.getDate() + 1); args.to = end.toISOString(); }
+    if (args.from && args.to && args.from >= args.to) { status.textContent = '开始日期不能晚于结束日期。'; return; }
+  }
+  setBusy(true);
+  try {
+    receive(await managementCall('query_usage', args));
+    if (all) { fromInput.value = ''; toInput.value = ''; }
+  } catch (error) { status.textContent = error.message; }
+  finally { setBusy(false); }
+}
+document.querySelector('#query-usage').addEventListener('click', () => queryUsage());
+document.querySelector('#all-usage').addEventListener('click', () => queryUsage(true));
 source.addEventListener('change', render);
 app.connect().catch(() => { status.textContent = '宿主连接失败。需要在支持 MCP Apps 的宿主内打开。'; });

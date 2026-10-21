@@ -11,6 +11,7 @@ import { z } from 'zod';
 
 export function createServer(roots, { queryPlugins = loadPluginStatus, usageIndex = new UsageIndex(), archiveManager = new ArchiveManager({ roots }) } = {}) {
 let pluginSnapshot = null, usageSnapshot = null;
+let usagePeriod = {};
 async function inventoryWithArchives() {
   let inventory = await scanInventory(roots);
   if (pluginSnapshot) inventory = applyPluginStatus(inventory, pluginSnapshot);
@@ -62,12 +63,24 @@ server.registerTool('import_usage', {
 }, async () => {
   try {
     const inventory = await inventoryWithArchives();
-    usageSnapshot = await usageIndex.refresh(inventory.skills);
+    usageSnapshot = await usageIndex.refresh(inventory.skills, usagePeriod);
     inventory.usage = usageSnapshot;
     return { content: [{ type: 'text', text: `已索引 ${inventory.usage.coverage.indexedFiles} 个日志文件；剩余 ${inventory.usage.coverage.pendingBytes} 字节尚未处理。信号不等于成功执行次数。` }], structuredContent: inventory };
   } catch {
     return { isError: true, content: [{ type: 'text', text: '导入失败，保留之前的索引。请检查日志权限、本地索引格式或是否已有导入占用；恢复方法见仓库本地验证文档。' }] };
   }
+});
+server.registerTool('query_usage', {
+  title: '按期间查询使用信号', description: '只读查询已有本地索引，不读取新聊天日志。时间需带时区，包含起点、不包含终点；省略两端查询全部已索引时间。',
+  inputSchema: { from: z.string().datetime({ offset: true }).optional(), to: z.string().datetime({ offset: true }).optional() },
+  annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
+}, async period => {
+  try {
+    const inventory = await inventoryWithArchives();
+    const result = await usageIndex.query(inventory.skills, period);
+    usagePeriod = period; usageSnapshot = result; inventory.usage = result;
+    return { content: [{ type: 'text', text: '已按期间查询已有索引；未读取新日志。' }], structuredContent: inventory };
+  } catch { return { isError: true, content: [{ type: 'text', text: '查询失败。请检查时间范围，并先导入一次使用信号更新索引；原结果保留。' }] }; }
 });
 const managementError = error => ({ isError: true, content: [{ type: 'text', text: error.code ? '文件操作失败，请检查路径权限及操作记录；未确认成功。' : error.message }] });
 server.registerTool('preview_skill_archive', {

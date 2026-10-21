@@ -80,3 +80,10 @@ test('generated review sessions and shell syntax do not become human invocation 
   assert.deepEqual(human.accept(review,'log',6), []);
   assert.deepEqual(human.accept(message('context','<codex_internal_context>$demo</codex_internal_context>'),'log',7), []);
 });
+
+test('unknown timestamps remain in all-time counts but are excluded from bounded periods', () => {
+  const p=parser(); const record=message('unknown','$demo'); delete record.timestamp;
+  const events=p.accept(record,'log',1);
+  assert.equal(aggregateUsage(events,skills).counts['explicit-marker'].events,1);
+  assert.equal(aggregateUsage(events,skills,{from:'2026-01-01T00:00:00Z'}).counts['explicit-marker'].events,0);
+});

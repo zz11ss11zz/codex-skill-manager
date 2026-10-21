@@ -105,7 +105,14 @@ export class UsageParser {
   }
 }
 
-export function aggregateUsage(events, skills) {
+export function aggregateUsage(events, skills, period = {}) {
+  const bound = value => {
+    if (value === undefined || value === null) return null;
+    if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}T.*(?:Z|[+-]\d{2}:\d{2})$/.test(value) || !Number.isFinite(Date.parse(value))) throw new Error('统计时间必须带时区');
+    return Date.parse(value);
+  };
+  const from = bound(period.from), to = bound(period.to);
+  if (from !== null && to !== null && from >= to) throw new Error('开始时间必须早于结束时间');
   // Union aliases before counting: a replay can connect two turn-level groups.
   // This keeps results independent of file/import order.
   const parents = events.map((_, i) => i), aliases = new Map(), accepted = [];
@@ -120,6 +127,8 @@ export function aggregateUsage(events, skills) {
   events.forEach((event, index) => { const key = root(index); if (!groups.has(key)) groups.set(key, []); groups.get(key).push(event); });
   for (const group of groups.values()) {
     const event = group[0];
+    const time = event.timestamp ? Date.parse(event.timestamp) : NaN;
+    if ((from !== null || to !== null) && (!Number.isFinite(time) || (from !== null && time < from) || (to !== null && time >= to))) continue;
     const candidates = skills.filter(skill => event.kind === 'read-request' ? normalizePath(skill.path) === event.reference : skill.name === event.reference || (skill.owner && `${skill.owner.directory || skill.owner.name}:${skill.name}` === event.reference));
     const locations = [...new Map(group.map(e => [`${e.source}:${e.line}`, { source: e.source, line: e.line }])).values()];
     accepted.push({ ...event, locations, candidateIds: candidates.map(s => s.id), resolution: candidates.length === 1 ? 'resolved' : candidates.length ? 'ambiguous' : 'unresolved' });
@@ -129,5 +138,5 @@ export function aggregateUsage(events, skills) {
     const group = accepted.filter(e => e.kind === kind);
     counts[kind] = { events: group.length, uniqueReferences: new Set(group.map(e => e.reference)).size, resolvedInstances: new Set(group.filter(e => e.resolution === 'resolved').map(e => e.candidateIds[0])).size };
   }
-  return { events: accepted, counts, limits: ['生成子会话（含审批审查）不计使用信号；来源不明的日志仅按可识别结构过滤。', '过滤已识别的变量语法，裸标记仍可能是讨论或变量，不能作为确定执行次数。', '显式标记仅表示调用意图；可能仍为讨论，不证明执行成功。', '读取请求是推断信号，不证明读取成功或技能实际执行。', '同一会话同一轮的相同路径读取合并；有稳定 ID 的重放去重，无 ID 时只能按来源行去重。', '仅支持独立 Get-Content/cat 和静态 tools.exec_command 调用；动态脚本、条件分支等不推断。', '未解析宿主激活和 Agent 自报，不将其他信号替代它们。', '同名多实例保留歧义；没有观察到信号不代表从未使用。'] };
+  return { events: accepted, counts, period: { from: from === null ? null : new Date(from).toISOString(), to: to === null ? null : new Date(to).toISOString() }, limits: ['生成子会话（含审批审查）不计使用信号；来源不明的日志仅按可识别结构过滤。', '过滤已识别的变量语法，裸标记仍可能是讨论或变量，不能作为确定执行次数。', '显式标记仅表示调用意图；可能仍为讨论，不证明执行成功。', '读取请求是推断信号，不证明读取成功或技能实际执行。', '同一会话同一轮的相同路径读取合并；有稳定 ID 的重放去重，无 ID 时只能按来源行去重。', '仅支持独立 Get-Content/cat 和静态 tools.exec_command 调用；动态脚本、条件分支等不推断。', '未解析宿主激活和 Agent 自报，不将其他信号替代它们。', '同名多实例保留歧义；没有观察到信号不代表从未使用。'] };
 }

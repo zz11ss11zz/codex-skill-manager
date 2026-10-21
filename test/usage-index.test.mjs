@@ -116,3 +116,28 @@ test('v1 index is backed up and reparsed instead of retaining false review signa
     assert.equal(next.counts['explicit-marker'].events,0);
   } finally { await rm(root,{recursive:true,force:true}); }
 });
+
+test('period counts use all indexed events and readonly queries do not import appended logs', async () => {
+  const root=await mkdtemp(path.join(os.tmpdir(),'usage-period-'));
+  const logs=path.join(root,'logs'), stateFile=path.join(root,'index.json');
+  try {
+    await mkdir(logs);
+    const file=path.join(logs,'events.jsonl');
+    await writeFile(file,Array.from({length:150},(_,i)=>row(`event-${i}`)).join('\n')+'\n');
+    const index=new UsageIndex({roots:[logs],stateFile});
+    await index.refresh(skills);
+    const before=await readFile(stateFile,'utf8');
+    await appendFile(file,row('later')+'\n');
+    const filtered=await index.query(skills,{from:'2026-01-01T08:00:00+08:00',to:'2026-01-02T00:00:00Z'});
+    assert.equal(filtered.counts['explicit-marker'].events,150);
+    assert.equal(filtered.events.length,100);
+    assert.equal(filtered.counts['explicit-marker'].resolvedInstances,1);
+    assert.equal(await readFile(stateFile,'utf8'),before);
+    const excluded=await index.query(skills,{to:'2026-01-01T00:00:00Z'});
+    assert.equal(excluded.totalEvents,0);
+    assert.equal((await index.query(skills)).totalEvents,150);
+    await assert.rejects(index.query(skills,{from:'2026-01-02T00:00:00Z',to:'2026-01-01T00:00:00Z'}));
+    await assert.rejects(index.query(skills,{from:'2026-01-01'}));
+    assert.equal((await index.refresh(skills)).totalEvents,151);
+  } finally { await rm(root,{recursive:true,force:true}); }
+});

@@ -109,7 +109,19 @@ export function defaultUsageOptions() {
 
 export class UsageIndex {
   constructor(options = defaultUsageOptions()) { this.options = options; }
-  async refresh(skills) {
+  async query(skills, period = {}) {
+    const { stateFile } = this.options;
+    const info = await lstat(stateFile);
+    if (!info.isFile() || info.isSymbolicLink() || info.size > 64 * 1024 * 1024) throw new Error('本地索引类型或大小无效');
+    const snapshot = JSON.parse(await readFile(stateFile, 'utf8'));
+    if (snapshot.version !== 2 || !snapshot.coverage || !snapshot.files || typeof snapshot.files !== 'object') throw new Error('请先导入使用信号以更新索引');
+    const states = Object.values(snapshot.files);
+    if (states.some(s => !Array.isArray(s.events))) throw new Error('本地索引损坏');
+    const usage = aggregateUsage(states.flatMap(s => s.events), skills, period);
+    return { ...usage, events: usage.events.slice(-100), totalEvents: usage.events.length, coverage: snapshot.coverage, limits: [...usage.limits, '仅查询已有索引，不读取新日志。覆盖信息仍为上次导入时的快照。', '期间使用起点包含、终点不包含；限定期间时排除时间未知的信号。', '计数使用全部已索引信号，证据最多展示 100 条；归属按当前清单重新核对。'] };
+  }
+  async refresh(skills, period = {}) {
+    aggregateUsage([], skills, period); // Validate before reading logs or changing the index.
     const { roots, stateFile } = this.options;
     const directory = path.dirname(stateFile);
     await mkdir(directory, { recursive: true });
@@ -147,14 +159,14 @@ export class UsageIndex {
         } catch { issues.push({ path: file.path, reason: '日志读取失败；该文件本次不计入统计' }); }
       }
       const states = Object.values(next), events = states.flatMap(s => s.events);
-      const usage = aggregateUsage(events, skills);
+      const usage = aggregateUsage(events, skills, period);
       const first = states.map(s => s.firstTimestamp).filter(Boolean).sort();
       const last = states.map(s => s.lastTimestamp).filter(Boolean).sort();
       const pendingBytes = discovered.files.reduce((sum, f) => sum + Math.max(0, f.size - (next[f.path]?.offset || 0)), 0);
       const coverage = { checkedAt: new Date().toISOString(), roots, discoveredFiles: discovered.files.length, indexedFiles: states.length, bytesRead, pendingBytes, records: states.reduce((n, s) => n + s.records, 0), malformedLines: states.reduce((n, s) => n + s.malformed, 0), oversizedLines: states.reduce((n, s) => n + s.oversized, 0), from: first[0] || null, to: last.at(-1) || null, resets, issues };
       coverage.rebuiltForParser = rebuiltForParser;
       coverage.excludedSessionFiles = states.filter(s => s.parser.excludedSession).length;
-      const serialized = JSON.stringify({ version: 2, files: next });
+      const serialized = JSON.stringify({ version: 2, files: next, coverage });
       if (Buffer.byteLength(serialized) > 64 * 1024 * 1024) throw new Error('本地索引达到 64 MiB 限制，保留此前索引');
       await writeFile(temporary, serialized, { flag: 'wx', mode: 0o600 });
       await rename(temporary, stateFile);
