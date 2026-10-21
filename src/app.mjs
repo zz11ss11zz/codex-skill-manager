@@ -111,6 +111,21 @@ function receive(result) {
   if (groups) {
     comparisons.append(textNode('p', `${groups.identicalDocuments.length} 组相同文档 · ${groups.nameConflicts.length} 组同名不同内容`));
     const byId = new Map(data.skills.map(s => [s.id, s]));
+    if (groups.descriptionOverlap) {
+      const overlap = groups.descriptionOverlap;
+      const section = document.createElement('details');
+      section.append(textNode('summary', `用途重叠候选（描述词语）：${overlap.totalPairs} 对`));
+      section.append(textNode('p', `比较 ${overlap.comparedInstances} / ${overlap.eligibleInstances} 个有效描述；显示 ${overlap.pairs.length} 对。`));
+      for (const limit of overlap.limits) section.append(textNode('p', limit));
+      for (const pair of overlap.pairs) {
+        const detail = document.createElement('details');
+        detail.append(textNode('summary', `${pair.ids.map(id => byId.get(id)?.name || id).join(' ↔ ')} · 词语交并比 ${pair.ratio.toFixed(2)}`));
+        detail.append(textNode('p', `共同词（${pair.sharedCount} 个，最多列 12 个）：${pair.sharedTerms.join('、')}`));
+        for (const id of pair.ids) { const skill = byId.get(id); if (skill) detail.append(textNode('p', `${skill.path}：${skill.description}`)); }
+        section.append(detail);
+      }
+      comparisons.append(section);
+    }
     for (const [label, items] of [['相同文档', groups.identicalDocuments], ['同名不同内容', groups.nameConflicts]]) {
       for (const group of items) {
         const detail = document.createElement('details');

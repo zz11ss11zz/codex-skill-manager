@@ -3,6 +3,7 @@ import path from 'node:path';
 import os from 'node:os';
 import { createHash } from 'node:crypto';
 import { parse } from 'yaml';
+import { descriptionOverlap } from './overlap.mjs';
 
 const MAX_FILE = 1024 * 1024;
 const digest = value => createHash('sha256').update(value).digest('hex');
@@ -17,6 +18,7 @@ export function compareInstances(skills) {
     }
   }
   return {
+    descriptionOverlap: descriptionOverlap(skills),
     identicalDocuments: [...fingerprints.values()].filter(group => group.length > 1).map(group => ({ fingerprint: group[0].fingerprint, ids: group.map(s => s.id) })),
     nameConflicts: [...names.entries()].filter(([, group]) => new Set(group.map(s => s.fingerprint)).size > 1).map(([name, group]) => ({ name, ids: group.map(s => s.id) })),
   };

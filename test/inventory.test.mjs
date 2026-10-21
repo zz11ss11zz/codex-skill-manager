@@ -49,7 +49,9 @@ test('directory junctions are skipped and malformed frontmatter remains visible'
     await symlink(path.join(temp, 'outside'), path.join(temp, 'skills', 'linked'), process.platform === 'win32' ? 'junction' : 'dir');
     const result = await scanInventory({ skills: path.join(temp, 'skills'), cache: path.join(temp, 'missing') });
     assert.equal(result.skills.length, 1);
-    assert.deepEqual(result.comparisons, { identicalDocuments: [], nameConflicts: [] });
+    assert.deepEqual(result.comparisons.identicalDocuments, []);
+    assert.deepEqual(result.comparisons.nameConflicts, []);
+    assert.equal(result.comparisons.descriptionOverlap.eligibleInstances, 0);
     assert.ok(result.issues.some(i => i.reason.includes('符号链接')));
     assert.ok(result.issues.some(i => i.reason.includes('元数据无效')));
     assert.ok(result.issues.some(i => i.reason === '目录不存在'));
