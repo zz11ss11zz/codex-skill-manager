@@ -25,6 +25,7 @@ textarea{display:block;width:100%;min-height:90px;margin:8px 0;padding:10px;font
 <label for="usage-from">开始日期（含当天）</label><input id="usage-from" type="date">
 <label for="usage-to">结束日期（含当天）</label><input id="usage-to" type="date">
 <button id="query-usage" type="button">查询已有索引</button><button id="all-usage" type="button">全部已索引时间</button>
+<p id="usage-status" role="status" aria-live="polite"></p>
 <p>日期按当前浏览器本地时区解释；查询不导入新日志，计数覆盖全部已索引信号。</p>
 <div id="usage">尚未导入。不能据此判断从未使用。</div></section>
 <p id="status" role="status">正在连接 MCP 宿主…</p><ul id="skills" aria-label="技能文件清单"></ul>

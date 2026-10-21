@@ -205,18 +205,22 @@ importUsage.addEventListener('click', async () => {
 search.addEventListener('input', render);
 async function queryUsage(all = false) {
   const fromInput = document.querySelector('#usage-from'), toInput = document.querySelector('#usage-to');
+  const feedback = document.querySelector('#usage-status');
   const args = {};
   if (!all) {
     if (fromInput.value) args.from = new Date(`${fromInput.value}T00:00:00`).toISOString();
     if (toInput.value) { const end = new Date(`${toInput.value}T00:00:00`); end.setDate(end.getDate() + 1); args.to = end.toISOString(); }
-    if (args.from && args.to && args.from >= args.to) { status.textContent = '开始日期不能晚于结束日期。'; return; }
+    if (args.from && args.to && args.from >= args.to) { feedback.textContent = '开始日期不能晚于结束日期。原查询结果保持不变。'; return; }
   }
   setBusy(true);
+  feedback.textContent = '正在查询已有索引…';
+  usage.setAttribute('aria-busy', 'true');
   try {
     receive(await managementCall('query_usage', args));
     if (all) { fromInput.value = ''; toInput.value = ''; }
-  } catch (error) { status.textContent = error.message; }
-  finally { setBusy(false); }
+    feedback.textContent = '查询完成。统计范围见下方结果。';
+  } catch (error) { feedback.textContent = `查询失败：${error.message} 原查询结果保持不变。`; }
+  finally { setBusy(false); usage.removeAttribute('aria-busy'); }
 }
 document.querySelector('#query-usage').addEventListener('click', () => queryUsage());
 document.querySelector('#all-usage').addEventListener('click', () => queryUsage(true));
