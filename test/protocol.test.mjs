@@ -19,12 +19,12 @@ test('stdio handshake, global discovery, resource and isolated inventory result'
   await writeFile(path.join(logs, 'synthetic.jsonl'), JSON.stringify({ type: 'response_item', payload: { type: 'message', id: 'synthetic', role: 'user', content: [{ type: 'input_text', text: '$example' }] } }) + '\n');
   const usageOptions = { roots: [logs], stateFile: path.join(root, 'index', 'usage.json') };
   const archiveOptions = { roots, archiveRoot: path.join(root, 'archive') };
-  const code = `import {createServer} from ${JSON.stringify(new URL('../src/server.mjs', import.meta.url).href)}; import {UsageIndex} from ${JSON.stringify(new URL('../src/usage-index.mjs', import.meta.url).href)}; import {SkillNotes} from ${JSON.stringify(new URL('../src/skill-notes.mjs', import.meta.url).href)}; import {ArchiveManager} from ${JSON.stringify(new URL('../src/archive.mjs', import.meta.url).href)}; import {StdioServerTransport} from '@modelcontextprotocol/sdk/server/stdio.js'; let queries = 0; await createServer(${JSON.stringify(roots)}, {skillNotes: new SkillNotes(${JSON.stringify(path.join(root, 'notes.json'))}), archiveManager: new ArchiveManager(${JSON.stringify(archiveOptions)}), usageIndex: new UsageIndex(${JSON.stringify(usageOptions)}), queryPlugins: async () => { if (queries++) throw new Error('synthetic failure'); return {plugins: [], checkedAt: '2026-01-01T00:00:00Z', evidence: 'synthetic'}; }}).connect(new StdioServerTransport());`;
+  const code = `import {createServer} from ${JSON.stringify(new URL('../src/server.mjs', import.meta.url).href)}; import {UsageIndex} from ${JSON.stringify(new URL('../src/usage-index.mjs', import.meta.url).href)}; import {SkillNotes} from ${JSON.stringify(new URL('../src/skill-notes.mjs', import.meta.url).href)}; import {ArchiveManager} from ${JSON.stringify(new URL('../src/archive.mjs', import.meta.url).href)}; import {StdioServerTransport} from '@modelcontextprotocol/sdk/server/stdio.js'; import {Adoptions} from ${JSON.stringify(new URL('../src/adoptions.mjs', import.meta.url).href)}; let queries = 0; await createServer(${JSON.stringify(roots)}, {adoptions: new Adoptions(${JSON.stringify(path.join(root, 'adoptions.json'))}), skillNotes: new SkillNotes(${JSON.stringify(path.join(root, 'notes.json'))}), archiveManager: new ArchiveManager(${JSON.stringify(archiveOptions)}), usageIndex: new UsageIndex(${JSON.stringify(usageOptions)}), queryPlugins: async () => { if (queries++) throw new Error('synthetic failure'); return {plugins: [], checkedAt: '2026-01-01T00:00:00Z', evidence: 'synthetic'}; }}).connect(new StdioServerTransport());`;
   const transport = new StdioClientTransport({ command: process.execPath, args: ['--input-type=module', '-e', code], cwd: fileURLToPath(new URL('..', import.meta.url)), stderr: 'pipe' });
   try {
     await client.connect(transport);
     const { tools } = await client.listTools();
-    assert.equal(tools.length, 9);
+    assert.equal(tools.length, 10);
     assert.deepEqual(tools[0]._meta['openai/ui'].entrypoints, [{ type: 'global' }]);
     const uri = tools[0]._meta.ui.resourceUri;
     const { contents } = await client.readResource({ uri });
@@ -32,7 +32,8 @@ test('stdio handshake, global discovery, resource and isolated inventory result'
     assert.equal(uri, `ui://codex-skill-manager/dashboard-${revision}.html`);
     await assert.rejects(client.readResource({ uri: 'ui://codex-skill-manager/dashboard.html' }));
     assert.equal(contents[0].mimeType, 'text/html;profile=mcp-app');
-    assert.match(contents[0].text, /扫描只读/);
+    assert.match(contents[0].text, /id="activity-panel"/);
+    assert.doesNotMatch(contents[0].text, /id="(?:skills|search|archives|management-plan|usage)"/);
     assert.ok(!contents[0].text.includes('/* APP_BUNDLE */'));
     const result = await client.callTool({ name: 'open_skill_manager', arguments: {} });
     assert.equal(result.isError, undefined);
@@ -41,6 +42,12 @@ test('stdio handshake, global discovery, resource and isolated inventory result'
     assert.equal(result.structuredContent.skills.length, 1);
     assert.equal(result.structuredContent.skills[0].name, 'example');
     const skill = result.structuredContent.skills[0];
+    const recordArgs = {id:'protocol-batch-000001',skills:['example','example']};
+    const recorded = await client.callTool({name:'record_skill_use',arguments:recordArgs});
+    assert.deepEqual(recorded.content,[{type:'text',text:'OK'}]);
+    assert.equal(recorded.structuredContent,undefined);
+    await client.callTool({name:'record_skill_use',arguments:recordArgs});
+    assert.equal((await client.callTool({name:'open_skill_manager',arguments:{}})).structuredContent.adoptions.total,2);
     const noteArgs = { id: skill.id, fingerprint: skill.fingerprint, note: 'synthetic retention reason', retain: true, expectedRevision: 0 };
     const noted = await client.callTool({ name: 'save_skill_note', arguments: noteArgs });
     assert.equal(noted.structuredContent.skills[0].annotation.note, noteArgs.note);
@@ -86,6 +93,9 @@ test('stdio handshake, global discovery, resource and isolated inventory result'
       const archive = await client.callTool({ name: 'execute_skill_plan', arguments: { token: plan.structuredContent.plan.token } });
       assert.equal(archive.structuredContent.operation.status, 'archived');
       assert.equal(archive.structuredContent.skills.length, 0);
+      const retryAfterRemoval = await client.callTool({name:'record_skill_use',arguments:recordArgs});
+      assert.deepEqual(retryAfterRemoval.content,[{type:'text',text:'OK'}]);
+      assert.equal((await client.callTool({name:'open_skill_manager',arguments:{}})).structuredContent.adoptions.total,2);
       const restore = await client.callTool({ name: 'preview_skill_restore', arguments: { archiveId: archive.structuredContent.operation.id } });
       const restored = await client.callTool({ name: 'execute_skill_plan', arguments: { token: restore.structuredContent.plan.token } });
       assert.equal(restored.structuredContent.skills.length, 1);
@@ -93,5 +103,16 @@ test('stdio handshake, global discovery, resource and isolated inventory result'
     await assert.rejects(client.readResource({ uri: 'file:///private.txt' }));
     const missing = await client.callTool({ name: 'delete_skill', arguments: {} });
     assert.equal(missing.isError, true);
+    // A cold service restores the persisted index without importing new log records.
+    await appendFile(path.join(logs, 'synthetic.jsonl'), JSON.stringify({type:'response_item',payload:{type:'message',id:'not-imported',role:'user',content:[{type:'input_text',text:'$example'}]}})+'\n');
+    const restarted = new Client({name:'cold-open-test',version:'1.0.0'});
+    try {
+      await restarted.connect(new StdioClientTransport({command:process.execPath,args:['--input-type=module','-e',code],cwd:fileURLToPath(new URL('..',import.meta.url)),stderr:'pipe'}));
+      const opened = await restarted.callTool({name:'open_skill_manager',arguments:{}});
+      assert.equal(opened.structuredContent.usage.totalEvents,2);
+      assert.ok(opened.structuredContent.usage.activity);
+      assert.ok(opened.structuredContent.usage.activity.timeZone);
+      assert.equal(opened.structuredContent.adoptions.total,2);
+    } finally { await restarted.close(); }
   } finally { await client.close(); await rm(root, { recursive: true, force: true }); }
 });

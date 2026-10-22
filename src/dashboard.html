@@ -7,28 +7,11 @@ input,select{display:block;width:100%;padding:10px 12px;margin:6px 0 16px;border
 button{background:#245eaa;color:white;border:0;border-radius:6px;padding:10px 18px;font:inherit;cursor:pointer}button:disabled{opacity:.6;cursor:wait}button:focus-visible{outline:2px solid #245eaa;outline-offset:3px}
 #management-plan p,#archives p{overflow-wrap:anywhere}
 textarea{display:block;width:100%;min-height:90px;margin:8px 0;padding:10px;font:inherit;border:1px solid #aeb8c4;border-radius:6px}input[type=checkbox]{display:inline-block;width:auto;margin:0 8px 12px 0}textarea:focus{outline:2px solid #245eaa;outline-offset:2px}
+body{background:#fff}main{max-width:1040px}header{padding-bottom:16px;margin-bottom:28px}header small{display:none}
+#activity-panel{margin:0 0 32px}.activity-heading{display:flex;align-items:center;gap:12px;flex-wrap:wrap}.activity-heading h2{margin-right:auto;font-size:20px}.activity-tabs{display:flex;gap:4px;background:#f3f5f7;border-radius:8px;padding:4px}.activity-tabs button{background:transparent;color:#536171;padding:7px 15px}.activity-tabs button[aria-pressed=true]{background:#fff;color:#155cb5;box-shadow:0 1px 3px #20252b20}.activity-heading select{width:auto;margin:0;padding:7px 9px;font-size:13px}.activity-caption,.activity-note{font-size:12px;color:#657182;line-height:1.7}.calendar-scroll{overflow-x:auto;padding:8px 0}.activity-calendar{min-width:710px}.calendar-months{display:grid;grid-template-columns:repeat(var(--weeks),1fr);height:24px;font-size:11px;color:#657182}.calendar-months span{overflow:visible;white-space:nowrap}.calendar-cells{display:grid;grid-template-rows:repeat(7,12px);grid-template-columns:repeat(var(--weeks),1fr);grid-auto-flow:column;gap:3px}.heat-cell,.heat-empty,.heat-swatch{border-radius:3px;min-width:0;padding:0;border:0}.heat-cell{width:100%;height:12px;cursor:pointer}.heat-cell:hover{outline:2px solid #183b6b;outline-offset:1px}.level-0{background:#f0f2f4}.level-1{background:#cce6ff}.level-2{background:#85bfff}.level-3{background:#328be8}.level-4{background:#075ebd}.heat-unknown{background:repeating-linear-gradient(135deg,#f6f7f9,#f6f7f9 3px,#e3e7ec 3px,#e3e7ec 4px)}.activity-tooltip{font-size:12px;min-height:21px;color:#31506f;margin:8px 0}.activity-legend{display:flex;align-items:center;justify-content:flex-end;gap:5px;color:#657182;font-size:11px}.heat-swatch{display:inline-block;width:12px;height:12px}.activity-legend span:last-child{margin-left:14px}.activity-rankings{display:grid;grid-template-columns:1fr 1fr;gap:36px;margin-top:26px}.activity-rankings h3{font-size:14px;font-weight:600;margin:0 0 12px}.activity-ranking{list-style:none;padding:0;margin:0}.activity-ranking li{display:flex;align-items:center;gap:10px;padding:10px 0;margin:0;border:0;border-radius:0;border-bottom:1px solid #eef0f3;min-width:0}.activity-avatar{display:grid;place-items:center;flex:0 0 34px;height:34px;border:1px solid #e0e6ee;border-radius:9px;color:#245eaa;background:#f8fbff;font-size:12px;font-weight:600}.activity-ranking li>div{min-width:0;flex:1}.activity-ranking strong{display:block;font-size:13px;overflow-wrap:anywhere}.ranking-detail{font-size:11px;color:#75808e;overflow-wrap:anywhere}.ranking-count{font-size:12px;white-space:nowrap;color:#245eaa}@media(max-width:600px){.activity-rankings{grid-template-columns:1fr;gap:22px}.activity-heading h2{width:100%}.activity-caption{max-width:100%}}
+.entity-panel{margin-top:26px;padding-top:20px;border-top:1px solid #eef0f3}.entity-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}.entity-heading h3{margin:0;font-size:15px}.entity-dates{display:flex;gap:10px;flex-wrap:wrap}.entity-dates label{display:flex;align-items:center;gap:6px;font-size:12px;color:#657182}.entity-dates input{width:auto;margin:0;padding:6px 8px;font-size:12px}.entity-grid{display:grid;grid-template-columns:repeat(auto-fill,20px);gap:5px;margin-top:14px}.entity-cell{height:20px;width:20px}.entity-cell:focus-visible{outline:2px solid #183b6b;outline-offset:2px}
 </style></head><body><main>
 <header><small>CODEX SKILL MANAGER / LOCAL</small><h1>能力管理器</h1><p>查看本地技能文件与来源证据。</p></header>
-<p class="notice">扫描只读，用户技能归档与恢复需先预览再执行；系统和插件内容只读。文件存在不等于已启用，使用信号不等于成功执行次数。</p>
-<section id="management-plan" hidden aria-label="管理操作预览"></section>
-<p id="management-status" role="status"></p>
-<details><summary>归档与恢复记录</summary><div id="archives"></div></details>
-<details><summary>重复与同名冲突候选</summary><div id="comparisons"></div></details>
-<label for="search">搜索名称、描述或路径</label><input id="search" type="search" placeholder="输入关键词">
-<label for="source">来源</label><select id="source"><option value="">全部来源</option></select>
-<button id="refresh" type="button">重新扫描</button>
-<button id="check-plugins" type="button">核对插件安装状态</button>
-<p>安装核对调用 Codex CLI，可能连接已配置的插件市场；不发送技能正文。普通扫描仅检查本地文件。</p>
-<button id="import-usage" type="button">增量导入本机使用信号</button>
-<p>仅读取本机 Codex 会话与归档日志，将信号和读取位置写入本项目 .local 索引，不保存聊天正文、不联网。每次最多读取 32 MiB。</p>
-<section aria-label="使用信号统计"><h2>使用信号</h2>
-<label for="usage-from">开始日期（含当天）</label><input id="usage-from" type="date">
-<label for="usage-to">结束日期（含当天）</label><input id="usage-to" type="date">
-<button id="query-usage" type="button">查询已有索引</button><button id="all-usage" type="button">全部已索引时间</button>
-<p id="usage-status" role="status" aria-live="polite"></p>
-<p>日期按当前浏览器本地时区解释；查询不导入新日志，计数覆盖全部已索引信号。</p>
-<div id="usage">尚未导入。不能据此判断从未使用。</div></section>
-<p id="status" role="status">正在连接 MCP 宿主…</p><ul id="skills" aria-label="技能文件清单"></ul>
-<details><summary>扫描范围、限制与问题</summary><div id="evidence"></div></details>
-<footer>当前按文件实例计数。同名与相同内容副本均保留；只有点击使用信号导入按钮才读取会话日志。</footer>
+<section id="activity-panel" aria-label="使用活动热力图与排名"></section>
+<p id="status" role="status">正在读取统计…</p>
 </main><script>/* APP_BUNDLE */</script></body></html>

@@ -1,5 +1,3 @@
-import { readFileSync } from 'node:fs';
-import { createHash } from 'node:crypto';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { pathToFileURL } from 'node:url';
@@ -9,14 +7,25 @@ import { UsageIndex } from './usage-index.mjs';
 import { ArchiveManager } from './archive.mjs';
 import { z } from 'zod';
 import { SkillNotes } from './skill-notes.mjs';
+import { Adoptions } from './adoptions.mjs';
+import { registerDashboard } from './dashboard-resource.mjs';
 
-export function createServer(roots, { queryPlugins = loadPluginStatus, usageIndex = new UsageIndex(), archiveManager = new ArchiveManager({ roots }), skillNotes = new SkillNotes() } = {}) {
+export function createServer(roots, { queryPlugins = loadPluginStatus, usageIndex = new UsageIndex(), archiveManager = new ArchiveManager({ roots }), skillNotes = new SkillNotes(), adoptions = new Adoptions() } = {}) {
 let pluginSnapshot = null, usageSnapshot = null;
-let usagePeriod = {};
+let usagePeriod = { timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone };
 async function inventoryWithArchives() {
   let inventory = await scanInventory(roots);
   if (pluginSnapshot) inventory = applyPluginStatus(inventory, pluginSnapshot);
+  // Restore persisted statistics after a service restart; never import chat logs on open.
+  if (!usageSnapshot) {
+    try { usageSnapshot = await usageIndex.query(inventory.skills, usagePeriod); }
+    catch (error) {
+      if (error.code !== 'ENOENT') inventory.issues.push({ path: usageIndex.options?.stateFile || '本地使用索引', reason: '已有使用统计无法读取；请检查索引，原文件未修改' });
+    }
+  }
   inventory.usage = usageSnapshot;
+  try { inventory.adoptions = await adoptions.summary(usagePeriod); }
+  catch { inventory.adoptions = null; inventory.issues.push({path:adoptions.file,reason:'采用记录无法读取；未将读取失败当作零使用'}); }
   inventory.managementSupported = process.platform === 'win32';
   try {
     const notes = await skillNotes.read();
@@ -30,15 +39,8 @@ async function inventoryWithArchives() {
   catch { inventory.archives = []; inventory.issues.push({ path: archiveManager.archiveRoot, reason: '归档记录无法读取' }); }
   return inventory;
 }
-// Resource identity follows its content so hosts cannot reuse a previous UI build.
-// Keep the content immutable for the lifetime of this server instance.
-const html = readFileSync(new URL('../dist/dashboard.html', import.meta.url), 'utf8');
-const revision = createHash('sha256').update(html).digest('hex').slice(0, 16);
-const uri = `ui://codex-skill-manager/dashboard-${revision}.html`;
 const server = new McpServer({ name: 'codex-skill-manager', version: '0.0.1' });
-server.registerResource('dashboard', uri, { mimeType: 'text/html;profile=mcp-app' }, async () => ({
-  contents: [{ uri, mimeType: 'text/html;profile=mcp-app', text: html }],
-}));
+const uri = registerDashboard(server);
 server.registerTool('open_skill_manager', {
   title: '能力管理器',
   description: '只读扫描标准技能目录与插件缓存，打开能力管理器。不读取聊天或凭据；缓存不代表已安装或启用。',
@@ -81,17 +83,30 @@ server.registerTool('import_usage', {
 });
 server.registerTool('query_usage', {
   title: '按期间查询使用信号', description: '只读查询已有本地索引，不读取新聊天日志。时间需带时区，包含起点、不包含终点；省略两端查询全部已索引时间。',
-  inputSchema: { from: z.string().datetime({ offset: true }).optional(), to: z.string().datetime({ offset: true }).optional() },
+  inputSchema: { from: z.string().datetime({ offset: true }).optional(), to: z.string().datetime({ offset: true }).optional(), timeZone: z.string().max(80).optional() },
   annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
 }, async period => {
   try {
     const inventory = await inventoryWithArchives();
-    const result = await usageIndex.query(inventory.skills, period);
+    const adoptionSummary = await adoptions.summary(period);
+    let result = null;
+    try { result = await usageIndex.query(inventory.skills, period); }
+    catch (error) { if (error.code !== 'ENOENT') throw error; }
     usagePeriod = period; usageSnapshot = result; inventory.usage = result;
+    inventory.adoptions = adoptionSummary;
     return { content: [{ type: 'text', text: '已按期间查询已有索引；未读取新日志。' }], structuredContent: inventory };
   } catch { return { isError: true, content: [{ type: 'text', text: '查询失败。请检查时间范围，并先导入一次使用信号更新索引；原结果保留。' }] }; }
 });
 const managementError = error => ({ isError: true, content: [{ type: 'text', text: error.code ? '文件操作失败，请检查路径权限及操作记录；未确认成功。' : error.message }] });
+server.registerTool('record_skill_use', {
+  title: '记录技能采用',
+  description: '采用技能时批量记录。id 为新批次唯一 ID（重试沿用）；skills 为技能名、插件名:技能名或准确路径，可重复，每项计一次。不用于历史补记或仅阅读审计。',
+  inputSchema: {id:z.string().regex(/^[A-Za-z0-9_-]{16,80}$/),skills:z.array(z.string().min(1).max(1024)).min(1).max(32)},
+  annotations: {readOnlyHint:false,destructiveHint:false,openWorldHint:false},
+}, async args => {
+  try { await adoptions.record(args, async () => (await scanInventory(roots)).skills); return {content:[{type:'text',text:'OK'}]}; }
+  catch (error) { return managementError(error); }
+});
 server.registerTool('save_skill_note', {
   title: '保存技能保留备注', description: '保存用户提供的本地备注和保留标记，不修改技能文件或启停状态。需基于当前文件指纹和备注版本，冲突时拒绝覆盖。',
   inputSchema: { id: z.string().regex(/^[a-f0-9]{64}$/), fingerprint: z.string().regex(/^[a-f0-9]{64}$/), note: z.string().max(1000), retain: z.boolean(), expectedRevision: z.number().int().nonnegative() },
