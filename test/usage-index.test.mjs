@@ -131,6 +131,7 @@ test('period counts use all indexed events and readonly queries do not import ap
     const filtered=await index.query(skills,{from:'2026-01-01T08:00:00+08:00',to:'2026-01-02T00:00:00Z'});
     assert.equal(filtered.counts['explicit-marker'].events,150);
     assert.equal(filtered.events.length,100);
+    assert.equal(filtered.activity.days.reduce((sum, day) => sum + day.entries.reduce((n, entry) => n + entry.explicit, 0), 0), 150);
     assert.equal(filtered.counts['explicit-marker'].resolvedInstances,1);
     assert.equal(await readFile(stateFile,'utf8'),before);
     const excluded=await index.query(skills,{to:'2026-01-01T00:00:00Z'});

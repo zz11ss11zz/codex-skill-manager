@@ -38,18 +38,19 @@ test('read commands are parsed without executing code and dynamic/audit-only men
   for (const command of ['echo cat /a/SKILL.md', 'cat $file', 'cat /a/SKILL.md; echo hi', 'rg SKILL.md /skills', 'node scan-skills.mjs']) assert.deepEqual(skillReadPaths(command, '/'), []);
 });
 
-test('same-turn partial reads and fork replay deduplicate regardless of import order; new turns remain separate', () => {
+test('distinct calls in the same turn remain separate; only reimports and fork replays deduplicate', () => {
   const parent = parser(), fork = parser('fork');
   const events = [
     ...parent.accept(read('r1', 'Get-Content demo/SKILL.md -TotalCount 20'), 'parent', 3),
     ...parent.accept(read('r2', 'Get-Content demo/SKILL.md -Tail 20'), 'parent', 4),
     ...fork.accept(read('r2', 'Get-Content demo/SKILL.md -Tail 20'), 'fork', 3),
   ];
-  assert.equal(aggregateUsage(events, skills).counts['read-request'].events, 1);
-  assert.equal(aggregateUsage([...events].reverse(), skills).counts['read-request'].events, 1);
-  assert.equal(aggregateUsage([...events, ...events], skills).counts['read-request'].events, 1);
+  assert.equal(aggregateUsage(events, skills).counts['read-request'].events, 2);
+  assert.equal(aggregateUsage([...events].reverse(), skills).counts['read-request'].events, 2);
+  assert.equal(aggregateUsage([...events, ...events], skills).counts['read-request'].events, 2);
+  assert.equal(aggregateUsage(events.map(event => ({...event,key:'legacy-turn-key'})), skills).counts['read-request'].events, 2);
   const next = parser('one', 'next');
-  assert.equal(aggregateUsage([...events, ...next.accept(read('r3', 'Get-Content demo/SKILL.md'), 'parent', 5)], skills).counts['read-request'].events, 2);
+  assert.equal(aggregateUsage([...events, ...next.accept(read('r3', 'Get-Content demo/SKILL.md'), 'parent', 5)], skills).counts['read-request'].events, 3);
 });
 
 test('ambiguous and unknown references are preserved; intent and inferred requests stay separate', () => {

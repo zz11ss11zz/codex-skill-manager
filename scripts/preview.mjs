@@ -11,6 +11,7 @@ import { createServer } from '../src/server.mjs';
 import { ArchiveManager } from '../src/archive.mjs';
 import { UsageIndex } from '../src/usage-index.mjs';
 import { SkillNotes } from '../src/skill-notes.mjs';
+import { Adoptions } from '../src/adoptions.mjs';
 
 const temporary = await mkdtemp(path.join(os.tmpdir(), 'skill-manager-ui-'));
 const roots = { skills: path.join(temporary, 'skills'), cache: path.join(temporary, 'cache') };
@@ -22,7 +23,21 @@ await file('skills/.system/system-demo/SKILL.md', markdown('system-demo', '合�
 await file('cache/test-market/plugin-demo/1/.codex-plugin/plugin.json', JSON.stringify({ name: 'plugin-demo', skills: './skills' }));
 await file('cache/test-market/plugin-demo/1/skills/chart-demo/SKILL.md', markdown('chart-demo', '合成示例：图表绘制与数据展示'));
 await file('logs/demo.jsonl', JSON.stringify({ type: 'response_item', timestamp: '2026-01-01T00:00:00Z', payload: { type: 'message', id: 'demo-message', role: 'user', content: [{ type: 'input_text', text: '$report-demo' }] } }) + '\n');
+// Deterministic synthetic activity for calendar, ranking and zero-state UI checks.
+for (let i = 1; i <= 6; i++) await file(`skills/unused-${i}/SKILL.md`, markdown(`unused-${i}`, '合成零使用示例'));
+const activityRows = [];
+for (let day = 0; day < 250; day++) {
+  const timestamp = new Date(Date.UTC(new Date().getFullYear(), 0, day + 1, 12)).toISOString();
+  const references = day % 4 ? ['report-demo', 'plugin-demo:chart-demo'] : ['system-demo'];
+  for (let n = 0; n < (day % 7) + 1; n++) activityRows.push(JSON.stringify({type:'response_item',timestamp,payload:{type:'message',id:`heat-${day}-${n}`,role:'user',content:[{type:'input_text',text:references.map(r=>`$${r}`).join(' ')}]}}));
+  for (let n = 0; n < (day % 7) + 1; n++) for (const ref of references) {
+    const relative = ref === 'system-demo' ? 'skills/.system/system-demo/SKILL.md' : ref.startsWith('plugin-demo:') ? 'cache/test-market/plugin-demo/1/skills/chart-demo/SKILL.md' : 'skills/report-demo/SKILL.md';
+    activityRows.push(JSON.stringify({type:'response_item',timestamp,payload:{type:'function_call',name:'exec_command',call_id:`read-${day}-${n}-${ref}`,arguments:JSON.stringify({cmd:`Get-Content '${path.join(temporary,relative)}'`})}}));
+  }
+}
+await file('logs/activity.jsonl', activityRows.join('\n') + '\n');
 const service = createServer(roots, {
+  adoptions: new Adoptions(path.join(temporary, 'adoptions.json')),
   skillNotes: new SkillNotes(path.join(temporary, 'notes.json')),
   archiveManager: new ArchiveManager({ roots, archiveRoot: path.join(temporary, 'archive') }),
   usageIndex: new UsageIndex({ roots: [path.join(temporary, 'logs')], stateFile: path.join(temporary, 'index', 'usage.json') }),
@@ -31,6 +46,8 @@ const service = createServer(roots, {
 const client = new Client({ name: 'synthetic-ui-client', version: '1.0.0' });
 const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
 await service.connect(serverTransport); await client.connect(clientTransport);
+await client.callTool({name:'check_plugin_status',arguments:{}});
+await client.callTool({name:'import_usage',arguments:{}});
 const allowedTools = new Set((await client.listTools()).tools.map(t => t.name));
 const script = await build({ entryPoints: [fileURLToPath(new URL('./preview-host.mjs', import.meta.url))], bundle: true, write: false, format: 'esm', platform: 'browser' });
 const dashboard = await readFile(new URL('../dist/dashboard.html', import.meta.url));

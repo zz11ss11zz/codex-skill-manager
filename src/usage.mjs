@@ -1,3 +1,4 @@
+import { summarizeActivity } from './activity.mjs';
 import { createHash } from 'node:crypto';
 import path from 'node:path';
 import { parse } from 'acorn';
@@ -97,8 +98,8 @@ export class UsageParser {
       for (const command of readCommands(p)) for (const file of skillReadPaths(command.cmd, command.cwd || this.cwd)) signals.push({ kind: 'read-request', reference: file });
     }
     return [...new Map(signals.map(signal => {
-      // Multiple reads of the same skill during a turn are one inferred activation candidate.
-      const scope = signal.kind === 'read-request' && this.session && this.turn ? `${this.session}:${this.turn}` : origin;
+      // Each distinct call stays separate, even inside the same turn or conversation.
+      const scope = origin;
       const key = hash(`${signal.kind}:${scope}:${signal.reference}`);
       return [key, { key, ...signal, timestamp: time, source, line, itemId: stableId, session: this.session, turn: this.turn, identity: stableId ? 'stable-item' : 'source-line', replayKey: stableId ? hash(`${signal.kind}:${stableId}:${signal.reference}`) : null }];
     })).values()];
@@ -106,6 +107,13 @@ export class UsageParser {
 }
 
 export function aggregateUsage(events, skills, period = {}) {
+  // v2 stores every source event, including item IDs, before aggregation. Re-key
+  // those events here so old turn-scoped keys do not merge separate calls.
+  // This is read-only and needs neither an index rewrite nor a chat-log reimport.
+  events = events.map(event => {
+    const identity = event.itemId || (event.source && Number.isSafeInteger(event.line) ? `${event.source}:${event.line}` : null);
+    return identity ? { ...event, key: hash(`${event.kind}:${identity}:${event.reference}`) } : event;
+  });
   const bound = value => {
     if (value === undefined || value === null) return null;
     if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}T.*(?:Z|[+-]\d{2}:\d{2})$/.test(value) || !Number.isFinite(Date.parse(value))) throw new Error('统计时间必须带时区');
@@ -113,7 +121,7 @@ export function aggregateUsage(events, skills, period = {}) {
   };
   const from = bound(period.from), to = bound(period.to);
   if (from !== null && to !== null && from >= to) throw new Error('开始时间必须早于结束时间');
-  // Union aliases before counting: a replay can connect two turn-level groups.
+  // Union copies of the same event, including stable-ID replays across files.
   // This keeps results independent of file/import order.
   const parents = events.map((_, i) => i), aliases = new Map(), accepted = [];
   const root = index => { while (parents[index] !== index) { parents[index] = parents[parents[index]]; index = parents[index]; } return index; };
@@ -148,5 +156,5 @@ export function aggregateUsage(events, skills, period = {}) {
     const group = accepted.filter(e => e.kind === kind);
     counts[kind] = { events: group.length, uniqueReferences: new Set(group.map(e => e.reference)).size, resolvedInstances: new Set(group.filter(e => e.resolution === 'resolved').map(e => e.candidateIds[0])).size };
   }
-  return { events: accepted, counts, instances: [...instances.values()], period: { from: from === null ? null : new Date(from).toISOString(), to: to === null ? null : new Date(to).toISOString() }, limits: ['生成子会话（含审批审查）不计使用信号；来源不明的日志仅按可识别结构过滤。', '过滤已识别的变量语法，裸标记仍可能是讨论或变量，不能作为确定执行次数。', '显式标记仅表示调用意图；可能仍为讨论，不证明执行成功。', '读取请求是推断信号，不证明读取成功或技能实际执行。', '同一会话同一轮的相同路径读取合并；有稳定 ID 的重放去重，无 ID 时只能按来源行去重。', '仅支持独立 Get-Content/cat 和静态 tools.exec_command 调用；动态脚本、条件分支等不推断。', '未解析宿主激活和 Agent 自报，不将其他信号替代它们。', '同名多实例保留歧义；没有观察到信号不代表从未使用。'] };
+  return { activity: summarizeActivity(accepted, period.timeZone), events: accepted, counts, instances: [...instances.values()], period: { from: from === null ? null : new Date(from).toISOString(), to: to === null ? null : new Date(to).toISOString() }, limits: ['生成子会话（含审批审查）不计使用信号；来源不明的日志仅按可识别结构过滤。', '过滤已识别的变量语法，裸标记仍可能是讨论或变量，不能作为确定执行次数。', '显式标记仅表示调用意图；可能仍为讨论，不证明执行成功。', '读取请求是推断信号，不证明读取成功或技能实际执行。', '同一对话同一轮中的不同读取调用分别计数；仅同一事件的重复导入或稳定 ID 重放去重，无 ID 时按来源行识别。', '仅支持独立 Get-Content/cat 和静态 tools.exec_command 调用；动态脚本、条件分支等不推断。', '未解析宿主激活和 Agent 自报，不将其他信号替代它们。', '同名多实例保留歧义；没有观察到信号不代表从未使用。'] };
 }

@@ -15,7 +15,7 @@
     "setup:install": "node scripts/setup.mjs install",
     "setup:uninstall": "node scripts/setup.mjs uninstall"
   },
-  "files": ["src", "scripts", "test", "docs", "dist/dashboard.html", "README.md"],
+  "files": ["src", "scripts", "test", "docs", "dist/dashboard.html", "dist/revisions", "README.md"],
   "dependencies": {
     "@modelcontextprotocol/ext-apps": "1.7.5",
     "@modelcontextprotocol/sdk": "1.32.1",
