@@ -35,6 +35,7 @@ test('standalone package builds and serves MCP resources outside the source tree
     const { contents } = await client.readResource({ uri });
     assert.match(contents[0].text, /id="activity-panel"/);
     assert.ok(contents[0].text.includes(pkg.version));
+    assert.ok(contents[0].text.includes(`版本 / Version v${pkg.version}</span>`));
     const revision = uri.match(/dashboard-([a-f0-9]+)\.html/)[1];
     assert.equal(await readFile(path.join(root, `server/dist/revisions/${revision}.html`), 'utf8'), contents[0].text);
     const bundle = await readFile(path.join(root, 'server/src/server.mjs'), 'utf8');
