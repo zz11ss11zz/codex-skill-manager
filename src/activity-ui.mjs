@@ -1,21 +1,17 @@
 import { activityView, calendarDays } from './activity.mjs';
 const node = (tag, value, className) => { const el = document.createElement(tag); if (value !== undefined) el.textContent = value; if (className) el.className = className; return el; };
 export function createActivityPanel(root) {
-  let current, kind = 'plugins', year = new Date().getFullYear(), metric = 'adoptions';
+  let current, kind = 'plugins', year = new Date().getFullYear(), metric = 'calls';
   const heading = node('div', undefined, 'activity-heading');
-  const title = node('h2', '技能采用');
+  const title = node('h2', '插件工具调用');
   const tabs = node('div', undefined, 'activity-tabs'); tabs.setAttribute('aria-label', '活动类型');
   const skillButton = node('button', 'Skill'), pluginButton = node('button', '插件');
   for (const button of [pluginButton, skillButton]) { button.type = 'button'; tabs.append(button); }
-  skillButton.addEventListener('click', () => { kind = 'skills'; if (metric === 'calls') { metric = 'adoptions'; measure.value = metric; } render(); });
-  pluginButton.addEventListener('click', () => { kind = 'plugins'; render(); });
+  skillButton.addEventListener('click', () => { kind = 'skills'; metric = 'adoptions'; render(); });
+  pluginButton.addEventListener('click', () => { kind = 'plugins'; metric = 'calls'; render(); });
   const yearSelect = node('select'); yearSelect.setAttribute('aria-label', '活动年份');
   yearSelect.addEventListener('change', () => { year = Number(yearSelect.value); dateFrom.value = `${year}-01-01`; dateTo.value = `${year}-12-31`; render(); });
-  const measure = node('select'); measure.setAttribute('aria-label', '统计信号');
-  for (const [value, label] of [['calls', '插件工具调用'], ['adoptions', 'Skill 采用次数'], ['reads', '历史读取请求'], ['explicit', '历史显式标记']]) { const option = node('option', label); option.value = value; measure.append(option); }
-  measure.addEventListener('change', () => { metric = measure.value; if (metric === 'calls') kind = 'plugins'; render(); });
-  measure.value = metric;
-  heading.append(title, tabs, measure, yearSelect);
+  heading.append(title, tabs, yearSelect);
   const caption = node('p', undefined, 'activity-caption'), scroll = node('div', undefined, 'calendar-scroll');
   const calendar = node('div', undefined, 'activity-calendar'); scroll.append(calendar);
   const tooltip = node('p', '将鼠标移到日期上，或用键盘选择日期查看使用量。', 'activity-tooltip'); tooltip.setAttribute('role', 'status');
@@ -42,7 +38,7 @@ export function createActivityPanel(root) {
     if (!current) return;
     skillButton.setAttribute('aria-pressed', String(kind === 'skills')); pluginButton.setAttribute('aria-pressed', String(kind === 'plugins'));
     const adopting = metric === 'adoptions', calling = metric === 'calls';
-    title.textContent = calling ? '插件工具调用' : 'Skill 采用与历史信号';
+    title.textContent = calling ? '插件工具调用' : 'Skill工具调用';
     const usage = calling ? current.pluginCalls : adopting ? current.adoptions : current.usage;
     const historical = (adopting ? usage?.catalog || [] : []).filter(s => !current.skills.some(p => p.id === s.id)).map(s => ({...s,historical:true,source:`${s.source}（已不在当前清单）`}));
     const view = activityView({...current,skills:[...current.skills,...historical],usage}, kind, year, metric);
@@ -50,7 +46,8 @@ export function createActivityPanel(root) {
     const years = [...new Set([year, new Date().getFullYear(), ...(usage?.activity?.days || []).map(d => Number(d.date.slice(0, 4)))])].sort((a, b) => b - a);
     yearSelect.replaceChildren(...years.map(y => { const option = node('option', `${y} 年`); option.value = String(y); return option; })); yearSelect.value = String(year);
     const label = calling ? '工具调用尝试' : adopting ? '采用' : metric === 'reads' ? '读取请求' : '显式标记';
-    caption.textContent = view.ready ? `${year} 年 · ${view.total} 次${label} · 时区 ${usage.activity.timeZone} · 年度热力图与前 5 排名使用同一期间${adopting && !usage.coverage.from ? ' · 尚未收到采用记录' : ''}` : adopting ? '采用记录暂不可读取，请重新打开管理器。' : '尚无历史每日统计，请查询已有索引或导入使用信号。';
+    caption.hidden = view.ready;
+    caption.textContent = view.ready ? '' : adopting ? '采用记录暂不可读取，请重新打开管理器。' : '插件调用记录暂不可读取。';
     calendar.replaceChildren();
     const dates = calendarDays(year), columns = dates.length / 7;
     calendar.style.setProperty('--weeks', columns);
@@ -107,7 +104,7 @@ export function createActivityPanel(root) {
       if (!ranked.all.length) entityTip.textContent = ranked.ready ? '当前没有可展示的项目。' : '尚无统计数据。';
     }
     rankings.replaceChildren();
-    for (const [title, entries] of [[`最常用${kind === 'plugins' ? '插件' : ' Skill'} · 前 5`, view.top], [adopting ? '未记录采用 · 最多 5 项' : '未观测到使用 · 最多 5 项', view.unused]]) {
+    for (const [title, entries] of [[`最常用${kind === 'plugins' ? '插件' : ' Skill'} · 前 5`, view.top], ['未观测到使用 · 最多 5 项', view.unused]]) {
       const section = node('section'); section.append(node('h3', title));
       const list = node('ol', undefined, 'activity-ranking');
       for (const entry of entries) {

@@ -23,6 +23,7 @@ test('stdio handshake, global discovery, resource and isolated inventory result'
   const transport = new StdioClientTransport({ command: process.execPath, args: ['--input-type=module', '-e', code], cwd: fileURLToPath(new URL('..', import.meta.url)), stderr: 'pipe' });
   try {
     await client.connect(transport);
+    assert.match(client.getServerVersion().icons[0].src, /^data:image\/png;base64,iVBOR/);
     const { tools } = await client.listTools();
     assert.equal(tools.length, 11);
     assert.deepEqual(tools[0]._meta['openai/ui'].entrypoints, [{ type: 'global' }]);
