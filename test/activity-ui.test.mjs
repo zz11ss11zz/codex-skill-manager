@@ -31,7 +31,7 @@ test('panel switches plugin calls and skill adoptions without mixing or mislabel
   assert.ok(elements.some(e=>e.tag==='p'&&e.textContent?.includes('2 次工具调用尝试')));
   elements.find(e=>e.tag==='button'&&e.textContent==='Skill').listeners.click();
   assert.equal(elements.filter(e=>e.tag==='select').length,1);
-  assert.ok(elements.some(e=>e.tag==='h2'&&e.textContent==='Skill工具调用'));
+  assert.ok(elements.some(e=>e.tag==='h2'&&e.textContent==='Skill 采用次数'));
   assert.equal(caption.hidden,true);
   assert.equal(caption.textContent,'');
   assert.ok(elements.some(e=>e.tag==='p'&&e.textContent?.includes('1 次采用')));

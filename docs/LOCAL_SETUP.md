@@ -28,6 +28,34 @@ cd codex-skill-manager
 
 再执行上方 npm 命令。Git 连接失败时改用 Release ZIP，不关闭 TLS 校验。ZIP 目录不能 git pull。
 
+## 配套 Skill（可选）
+
+源码 MCP 注册不会安装配套 Skill。先完成服务安装，再在希望使用 Skill 的项目目录中安装说明文件。`skills@1.7.4` 要求 Node.js 22.20+，与管理器自身要求不同。替换下方路径为实际源码目录：
+
+```powershell
+npx skills@1.7.4 add "C:\tools\codex-skill-manager" --skill skill-manager --agent codex --copy
+```
+
+这是项目级安装，默认写入当前项目的 `.agents/skills/skill-manager`；不加 `--global`。同名 Skill 已存在时先检查安装器提示，不覆盖自己的修改。2026-10-23 在隔离项目、Node.js 24.19.0、skills 1.7.4 下实际安装通过，安装后的 SKILL.md 与源码逐字节一致。官方参数见 [skills 仓库](https://github.com/vercel-labs/skills)。
+
+网络允许 GitHub clone 时也可以使用：
+
+```powershell
+npx skills@1.7.4 add zz11ss11zz/codex-skill-manager --skill skill-manager --agent codex --copy
+```
+
+本次远程命令在 Git clone 阶段因 `Recv failure: Connection was reset` 失败，仅列为可选方式，不声称本机通过。可以先下载源码 ZIP 再使用本地路径，不关闭 TLS 校验。
+
+配套 Skill 不开启自动监听。要保存后续记录，阅读 [采用记录约定](ADOPTION_RECORDING.md) 与 [插件调用接入](PLUGIN_CALLS.md)。如果助手报告缺少 MCP 服务，先检查服务注册和宿主重载，不用重复安装 Skill 代替服务安装。
+
+在同一项目目录卸载配套 Skill：
+
+```powershell
+npx skills@1.7.4 remove skill-manager --agent codex
+```
+
+这与 `npm.cmd run setup:uninstall` 移除 MCP 注册不同。第三方 skills CLI 有独立的匿名安装遥测，可按其说明设置 `DISABLE_TELEMETRY=1`；本次验证关闭遥测，不用于提高排行榜。安装成功不代表已进入 skills.sh 排行或 Codex 官方目录。
+
 ## 升级与备份
 
 先停止旧服务并备份持久数据。默认数据在 CODEX_HOME 下 skill-manager/data-v1；未设置 CODEX_HOME 时为用户目录的 .codex/skill-manager/data-v1。CODEX_SKILL_MANAGER_DATA_DIR 可指定其他绝对目录。

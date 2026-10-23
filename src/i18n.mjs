@@ -7,7 +7,7 @@ export const english = {
   "活动类型": "Activity type", "插件": "Plugins", "活动年份": "Activity year",
   "将鼠标移到日期上，或用键盘选择日期查看使用量。": "Hover over a date or select it with the keyboard to view activity.",
   "少": "Less", "多": "More", "斜线：无覆盖 / 未查询": "Hatched: no coverage / not queried",
-  "开始日期": "Start date", "结束日期": "End date", "Skill工具调用": "Skill adoptions",
+  "开始日期": "Start date", "结束日期": "End date", "Skill 采用次数": "Skill adoptions",
   "{0}（已不在当前清单）": "{0} (no longer in the current inventory)",
   "{0} 年": "{0}", "工具调用尝试": "tool call attempts", "采用": "adoptions",
   "读取请求": "read requests", "显式标记": "explicit mentions",

@@ -1,54 +1,66 @@
-<h1 align="center">Codex Skill Manager</h1>
+# Codex Skill Manager
 
-Version **0.1.0** — source distribution under [Apache-2.0](LICENSE). See [CHANGELOG](CHANGELOG.md), [installation](docs/LOCAL_SETUP.md), [known limitations](docs/KNOWN_LIMITATIONS.md) and [validation](docs/VALIDATION.md).
+**See which Skills were recorded as adopted, and which plugins were recorded as called.**
 
-<h3 align="center">Local Skill Inventory · Usage Evidence · Activity Insights</h3>
+A local activity dashboard for Codex: calendar heatmaps, date-filtered rankings, and separate records for Skill adoptions and plugin call attempts.
 
-<p align="center">Explore your local Codex skills and plugins with activity heatmaps, usage rankings, and evidence-aware records.</p>
+**English** | [中文](README.zh-CN.md) · [Install](docs/LOCAL_SETUP.md) · [Release v0.1.0](https://github.com/zz11ss11zz/codex-skill-manager/releases/tag/v0.1.0) · [Apache-2.0](LICENSE)
 
-<p align="center">
-  <img alt="Node.js 20.18+" src="https://img.shields.io/badge/Node.js-20.18%2B-43853d">
-  <img alt="Public repository" src="https://img.shields.io/badge/Repository-Public-42645c">
-  <img alt="Version 0.1.0" src="https://img.shields.io/badge/Version-0.1.0-d49a33">
-  <img alt="English and Chinese" src="https://img.shields.io/badge/UI-English_%7C_中文-2878b5">
-  <img alt="Local data" src="https://img.shields.io/badge/Data-Local-294c5b">
-</p>
+![30-second dashboard walkthrough with synthetic data](docs/media/demo.gif)
 
-<p align="center"><strong>English</strong> | <a href="README.zh-CN.md">中文</a></p>
-<p align="center"><a href="#overview">Overview</a> · <a href="#quick-start">Quick Start</a> · <a href="#language">Language</a> · <a href="#evidence-and-counting">Evidence</a> · <a href="#privacy">Privacy</a> · <a href="#development">Development</a></p>
+*Actual dashboard UI in a browser demonstration host, using synthetic records. This is not a native Codex recording or real user activity. [Static screenshot](docs/media/dashboard-skills.png) · [Demo provenance](docs/media/README.md). The Chinese adoption heading includes a wording correction made after v0.1.0.*
 
-## Overview
+## What it helps you do
 
-Codex Skill Manager is an independent, local MCP activity dashboard. It is **not an official OpenAI product**.
+- See recorded activity over a year and inspect individual dates.
+- Switch between Skill adoptions and plugin tool-call attempts without mixing the metrics.
+- Filter rankings by date and distinguish missing coverage from zero activity.
+- Ask the connected MCP tools about local inventory, notes, duplicate candidates, or reversible Windows user-skill archives. These management controls are not currently in the dashboard.
 
-The current dashboard shows a calendar heatmap, an item heatmap, and two rankings. Switch between plugin tool calls and Skill adoptions, choose a year, and narrow item rankings by date. Hover, click, or use the keyboard to inspect counts. Hatched cells indicate missing coverage rather than zero usage.
+The complete product combines a **local MCP service, an activity UI, and a companion Skill**. Installing the Skill alone does not install the service. Recording requires explicit caller participation; this is not an automatic host monitor. Missing records do not mean a Skill was never used.
 
-Inventory, search, evidence details, and archive controls are currently absent from the dashboard. Their backend tools remain available. The project supports local inventory, incremental historical signal import, notes, duplicate candidates, and reversible Windows user-skill archiving.
+## Quick start: complete manager
 
-## Quick Start
+Tested on Windows. Requires Node.js 20.18+ and the Codex CLI on PATH. This is an independent project, not an official OpenAI product or an official-directory listing.
 
-Requires Node.js 20.18 or later and a Codex CLI available on PATH.
+Download the [v0.1.0 source ZIP](https://github.com/zz11ss11zz/codex-skill-manager/archive/refs/tags/v0.1.0.zip), extract it to a permanent directory, and open PowerShell in the folder containing package.json:
 
-```sh
-git clone --branch v0.1.0 --depth 1 https://github.com/zz11ss11zz/codex-skill-manager.git
-cd codex-skill-manager
-npm ci --ignore-scripts
-npm test
-npm run setup:install
-npm run setup:check
+```powershell
+npm.cmd ci --ignore-scripts
+npm.cmd test
+npm.cmd run setup:install
+npm.cmd run setup:check
 ```
 
-If Git is unavailable or clone fails, download the [source ZIP](https://github.com/zz11ss11zz/codex-skill-manager/archive/refs/tags/v0.1.0.zip), extract it, and run the npm commands above in the extracted directory. ZIP installations are updated by downloading source again; they do not support git pull. The fixed-commit ZIP route passed clean-source acceptance on 2026-10-23 (55 regression tests and six registration/service lifecycle checks); see [validation](docs/VALIDATION.md). This is source installation, not remote marketplace installation.
+The check should report registered, matches, and enabled as true. Reload the MCP service or reopen Codex, then ask it to call `open_skill_manager`. Keep the source directory in place. `npm start` runs a stdio service; it does not open a browser.
 
-Reload the MCP service and reopen the sidebar after updating. The entry tool is `open_skill_manager`. Running `npm start` starts a stdio MCP process; it does not open a browser.
+The source-install path has passed 55 regression tests and six isolated service lifecycle checks. Native-sidebar interaction in the latest desktop host remains unverified. See [validation](docs/VALIDATION.md), [known limitations](docs/KNOWN_LIMITATIONS.md), and [setup/recovery](docs/LOCAL_SETUP.md).
 
-The setup script uses the Codex CLI to register the service. Uninstallation removes the matching registration and preserves local data:
+## Optional: companion Skill
 
-```sh
-npm run setup:uninstall
+After setting up the service, install the companion instructions from your downloaded source into your chosen project. The pinned skills CLI requires **Node.js 22.20+**, independently of the manager's Node requirement:
+
+```powershell
+# Run in the project where you want to use the Skill.
+# Replace this path with your extracted source directory.
+npx skills@1.7.4 add "C:\tools\codex-skill-manager" --skill skill-manager --agent codex --copy
 ```
 
-See the [detailed setup and recovery guide (Chinese)](docs/LOCAL_SETUP.md).
+This local-source route was tested in an isolated project. A direct GitHub route is available in the CLI, but our network test failed during Git clone; do not treat it as verified here. See [companion Skill installation](docs/LOCAL_SETUP.md#配套-skill可选).
+
+Start with: “Open Skill Manager and explain the difference between adoption and call counts.” To collect new records, follow [adoption recording](docs/ADOPTION_RECORDING.md) or [plugin-call recording](docs/PLUGIN_CALLS.md). The companion Skill alone does not enable background collection.
+
+Unregister the service, preserving its local data:
+
+```powershell
+npm.cmd run setup:uninstall
+```
+
+## Demo and feedback
+
+[Chinese launch copy and 30-second script](docs/LAUNCH.zh-CN.md) · [Reproduce the synthetic demo](docs/media/README.md) · [Report an issue](https://github.com/zz11ss11zz/codex-skill-manager/issues)
+
+Useful feedback: installation steps that failed, confusing metric definitions, or missing workflows. Share sanitized errors and reproduction steps; omit private chats, paths and credentials.
 
 ## Language
 

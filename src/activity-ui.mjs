@@ -40,7 +40,7 @@ export function createActivityPanel(root, locale = 'zh') {
     if (!current) return;
     skillButton.setAttribute('aria-pressed', String(kind === 'skills')); pluginButton.setAttribute('aria-pressed', String(kind === 'plugins'));
     const adopting = metric === 'adoptions', calling = metric === 'calls';
-    title.textContent = calling ? t("插件工具调用") : t("Skill工具调用");
+    title.textContent = calling ? t("插件工具调用") : t("Skill 采用次数");
     const usage = calling ? current.pluginCalls : adopting ? current.adoptions : current.usage;
     const historical = (adopting ? usage?.catalog || [] : []).filter(s => !current.skills.some(p => p.id === s.id)).map(s => ({...s,historical:true,source:t("{0}（已不在当前清单）", s.source)}));
     const view = activityView({...current,skills:[...current.skills,...historical],usage}, kind, year, metric);
@@ -139,7 +139,7 @@ export function createActivityPanel(root, locale = 'zh') {
     legend.children[0].textContent = t('少');
     legend.children[6].textContent = t('多');
     legend.children[7].textContent = t('斜线：无覆盖 / 未查询');
-    title.textContent = t(metric === 'calls' ? '插件工具调用' : 'Skill工具调用');
+    title.textContent = t(metric === 'calls' ? '插件工具调用' : 'Skill 采用次数');
     tooltip.textContent = t('将鼠标移到日期上，或用键盘选择日期查看使用量。');
     render();
   };
