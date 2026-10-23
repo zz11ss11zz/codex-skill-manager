@@ -10,6 +10,7 @@ import { SkillNotes } from './skill-notes.mjs';
 import { Adoptions } from './adoptions.mjs';
 import { PluginCalls } from './plugin-calls.mjs';
 import { registerDashboard } from './dashboard-resource.mjs';
+import { appIcon } from './app-icon.mjs';
 
 export function createServer(roots, { queryPlugins = loadPluginStatus, usageIndex = new UsageIndex(), archiveManager = new ArchiveManager({ roots }), skillNotes = new SkillNotes(), adoptions = new Adoptions(), pluginCalls = new PluginCalls() } = {}) {
 let pluginSnapshot = null, usageSnapshot = null;
@@ -42,7 +43,7 @@ async function inventoryWithArchives() {
   catch { inventory.archives = []; inventory.issues.push({ path: archiveManager.archiveRoot, reason: '归档记录无法读取' }); }
   return inventory;
 }
-const server = new McpServer({ name: 'codex-skill-manager', version: '0.0.1' });
+const server = new McpServer({ name: 'codex-skill-manager', version: '0.0.1', icons: [appIcon] });
 const uri = registerDashboard(server);
 server.registerTool('open_skill_manager', {
   title: '能力管理器',
