@@ -251,3 +251,40 @@
 - 实际 `codex plugin list --json` 返回插件 installed/enabled 均为 true。app-server 的 `skills/list` 返回启用的 `codex-skill-manager:skill-manager`，路径位于安装缓存且内容与源 Skill 相同。该检查没有启动模型任务，不等于原生侧栏视觉检查。
 - Windows 10、Node.js 20.18.1、Codex CLI 0.163.0-alpha.11.1；测试全部使用隔离配置和合成数据，结束时通过官方 CLI 卸载测试插件。该安装阻塞现记为已解决/接受；M3 转为进行中，保留远程市场分发与 M1 原生侧栏未完成项。没有新发布或替换真实服务配置。
 - 最终本地产物 `dist/marketplace-0.1.0-alpha.0-m3-accepted` 已再次完成上述 11 项实际市场验收。服务 bundle SHA-256：`23624f593b4a97aa2514cc81cec72b7a3a5851c10ff437a55842c34f3ced2739`。新旧许可文件 SHA-256 相同（`77565fbb9c3aa95f5532472b46a2740cc624a0b8b59df034e5e6aa9a92d216d7`），确认只是扩展名改变，没有丢失第三方文本。
+
+
+## 2026-10-23 M3 分发验收标准修订
+
+- 用户要求重新考虑把预构建运行包放入源码仓库的方案。此前约 3 MB 服务 bundle 属于生成产物，不是业务源码或用户数据；大小本身不是 GitHub 要求采用该布局的依据。
+- 停止继续上传大文件及为上传限制拆分 bundle。此前本地远程分发实验提交未作为已验收方案；保留实验，不据此推进发布。部分小文件 Git blob 已上传不等于有效远程市场已发布。本次查询远程分支仅 main，指向 `3df436fb8b4e724bd032ad533773241e5a3f9cc7`。
+- 2026-10-23 官方打包文档明确列出 Git 与 npm 市场来源，并说明 npm 下载不运行生命周期脚本。未从该文档确认直接将 Release ZIP 作为市场来源；hooks 的存在也不能证明安装时可自动构建。后续需核对实际目标宿主并做隔离试验。
+- 验收拆为 M3-A 本地包（已有证据通过）、M3-B 分发机制与决策（待完成）、M3-C 产物来源与归属（待完成）、M3-D 真实远程生命周期（未通过）。源码不默认纳入生成运行包；候选分发位置与所需安装步骤须先确定，再执行远程验收。
+- 本批仅修改验收计划、验证记录及中英文市场说明，并检查两份工作目录文档一致；不重跑无关运行测试，不把此前 55 项回归和 11 项本地检查扩展成新方案已通过，不新增 Release 或远程分发提交。
+- 依据：https://developers.openai.com/plugins/build/plugins 。完整门禁与下一步见 V0.1.0_PLAN.md 的“M3 修订验收条件”。
+
+
+## 2026-10-23 GitHub 源码下载与干净安装验收
+
+用户要求代为完成 GitHub 下载后的安装验证。本次选择仓库 README 已公开的源码构建 + MCP 注册路径，不引入 npm 发布、运行时下载器或 Git 内预构建 bundle。
+
+- 来源：GitHub main commit `3df436fb8b4e724bd032ad533773241e5a3f9cc7`；从 `https://codeload.github.com/zz11ss11zz/codex-skill-manager/zip/3df436fb8b4e724bd032ad533773241e5a3f9cc7` 实际下载源码 ZIP，未复制已有工作副本。ZIP SHA-256：`d37e430bbde0addc8a821c13f7534b18e173f0433c3d1329a602e11c6227379b`。
+- 初始解压目录没有 node_modules 或 dist；另用空 npm 缓存和新的 USERPROFILE/HOME/CODEX_HOME。Node.js 20.18.1、Codex CLI 0.163.0-alpha.11.1、Windows。没有改动真实配置或读取真实记录。
+- 从网络安装：`npm.cmd ci --ignore-scripts --no-audit --no-fund`，101 个依赖安装成功；`SKILL_MANAGER_TEST_CODEX=1` 下 `npm.cmd test` 为 55 通过、0 失败、0 跳过。
+- 按 README 执行 `npm.cmd run setup:install` 与 `npm.cmd run setup:check`，registered/matches/enabled 均为 true。验证驱动根据官方 CLI 返回的真实注册命令启动下载源码中的服务，没有注入替代服务器。
+- 6 项实际流程通过：注册指向下载源码；服务启动、11 个工具可发现及页面原文/哈希 URI 一致、未知版本拒绝；新增合成记录跨服务重启保留且重试去重；原目录重复安装幂等；卸载后注册消失且数据哈希不变；重装后读取原记录。最终测试注册已卸载。
+- 页面 SHA-256：`9fb0819d5dfe5e76d086eedb93c9207b5ed4d24448e873d4b8a9cb13e19e8b0c`。测试驱动第一次使用了不符合接口约定的合成工具名称，接口正确拒绝；修正测试名称后完成检查，未修改被测远程源码。
+- 获取限制：Git clone 在沙箱出现 schannel 凭据接口错误，正常权限重试未完成并已取消；GitHub 官方 codeload ZIP 下载成功。因此接受“源码 ZIP 下载 → 安装依赖 → 构建/注册 → 服务使用 → 重启/卸载/重装”路径，不宣称本机 git clone 已通过。
+- 边界：没有执行桌面应用重启和原生侧栏视觉操作，没有进行跨版本升级；本次为同版本重装。没有从远程 marketplace 安装插件，源码 MCP 注册也不自动安装配套 Skill。M3 的远程 marketplace/发布候选门禁仍不能据此全部标为通过。
+- 本地证据保存在工作区 `.work/source-acceptance-20261023/`：`regression.log`、`probe.mjs`、`source-result.json`。不上传隔离配置、合成账本或机器路径；源码及构建产物保留用于复核。
+
+## 2026-10-23 v0.1.0 正式发布检查
+
+- 用户明确取消 alpha/beta 阶段，授权检查后合入 main、创建正式 GitHub Release，并选择 Apache-2.0。正式分发范围为源码 ZIP 安装；一键远程市场与 npm 发布不纳入本版。
+- 发布修改从 main `3df436fb8b4e724bd032ad533773241e5a3f9cc7` 开始；未采用的 Git 内预构建运行包实验没有纳入。package 和 lock 根版本均为 0.1.0，服务、UI 和生成 manifest 从 package.json 取版本。
+- Apache-2.0 原文取自 Apache 官方站点对应的 apache/www-site 仓库，添加项目 NOTICE；生成独立包同时携带 LICENSE、NOTICE 和已有第三方许可全文。现有包测试核对项目许可逐字节一致。
+- 最终功能检查：启用 SKILL_MANAGER_TEST_CODEX 后，完整回归 55 通过、0 失败、0 跳过。后续卸载返回文本修正另跑 setup.test.mjs，通过 1 项真实 CLI 注册/幂等/卸载检查。
+- 独立 0.1.0 包真实安装和生命周期复验 11 项全部通过，包括宿主 Skill 发现、页面逐字节/版本 URI 检查、四类数据迁移、重启、损坏保护、同版本替换、卸载/重装、快照回退及停机备份恢复。服务 bundle SHA-256：`82c58fe120f135c6f13af19e75292b53d3fdf8bf73c2b23270bb44f604f3b0d8`。后续修改仅涉及文档、测试诊断与卸载提示。
+- 首次生命周期运行在快照回退启动时连接关闭；单独初始化成功。增加测试驱动 stderr 诊断后，在新的隔离配置完整复验通过，未定位首次中断根因，不声称修复未知原因；已列为已知限制。两次测试安装均通过官方 CLI 清理，数据和证据保留。
+- 真实跨版本检查：从已发布 `v0.0.1-alpha.1` commit `3d895e6b6a482899d6dbacbdc9399ce75dbd6eb1` 的服务写入四类合成旧数据，经卸载旧注册、安装 0.1.0 和指定旧 .local 迁移，主数据与迁移备份逐字节一致。备注、2 次采用、1 次调用和 1 条历史信号均保留；新增调用后重启变为 2 次，旧源文件哈希不变，升级后注册可正常卸载。4 项检查通过。
+- 测试环境：Windows、Node.js 20.18.1、Codex CLI 0.163.0-alpha.11.1。全部使用隔离配置与合成数据，没有迁移真实用户记录。最新原生侧栏交互、桌面语言切换和其他平台仍未验证，明确披露在 KNOWN_LIMITATIONS.md。
+- 本地复现证据：工作区中的 v010-tests.log、v010-acceptance-traced.log、隔离 acceptance 结果及 verify-upgrade-v010.mjs/升级结果；不提交配置、账本或机器路径。Release 的源 commit、下载文件及校验值以最终发布记录为准。

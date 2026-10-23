@@ -32,7 +32,7 @@ export async function setup(action, { cli = process.env.CODEX_SKILL_MANAGER_CLI 
   }
   if (existing) await command(['mcp', 'remove', name]);
   if (await inspect()) throw new Error('卸载后的注册核对未通过，请检查配置');
-  return { action, status: existing ? 'uninstalled' : 'already-absent', preserved: ['project files', '.local usage index', 'skill-manager-archive'], restartRequired: true };
+  return { action, status: existing ? 'uninstalled' : 'already-absent', preserved: ['project files', 'persistent data directory', 'legacy .local files', 'skill-manager-archive'], restartRequired: true };
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {

@@ -1,6 +1,6 @@
 # M2 持久数据与迁移验收
 
-适用开发版本：0.1.0-alpha.0 的 M2 构建。开发节点以包目录名和代码提交区分，尚非公开发布候选。
+适用版本：0.1.0。源码安装从仓库根目录运行 `node src/server.mjs --initialize-data`；下文的 `node server/src/server.mjs --initialize-data` 用于生成的独立插件包。迁移前先停止旧服务，核对源目录与目标目录。
 
 ## 目录与边界
 
@@ -45,6 +45,8 @@ node server/src/server.mjs --initialize-data
 
 2026-10-23 已由 Agent 代验收 M2，按用户明确授权记为接受。54 项回归零失败零跳过；实际 Codex CLI 的 MCP 注册和独立包服务完成 8 项隔离数据生命周期检查。浏览器检查完成页面切换、日期筛选、窄面板和损坏状态显示。没有迁移用户真实数据；不等同于 Codex 原生侧栏或 marketplace 安装通过。
 
-复现自动验收：`node scripts/acceptance.mjs dist/plugin-0.1.0-alpha.0-m2-acceptance --mcp-only`。脚本仅创建独立测试配置、技能和日志，结果留在忽略的 `work/acceptance-*`；它会移除自己的 MCP 注册。省略 `--mcp-only` 会尝试本地 marketplace 路径，该路径在当前 Codex CLI 0.163.0-alpha.11.1 上于激活缓存时报 `os error 5`，仍须后续处理。
+正式版检查覆盖 55 项回归、11 项完整本地市场生命周期，以及从已发布 v0.0.1-alpha.1 到 0.1.0 的实际四类数据迁移。此前 Windows 缓存激活问题已通过打包布局调整解决；一次快照回退启动中断未在带诊断的新配置复验中复现，详见 VALIDATION.md。
+
+复现自动验收：先 `npm run build:plugin`，再 `node scripts/acceptance.mjs dist/plugin-0.1.0`。脚本只创建独立测试配置、技能和日志，结果保存在忽略的 `work/acceptance-*`；正常完成时卸载自己的测试插件。加 `--mcp-only` 可独立验证 MCP 注册路径，不代表市场安装。没有迁移用户真实数据，也不等于原生侧栏视觉检查通过。
 
 复现浏览器检查：`node scripts/acceptance-panel.mjs <生成的 result.json>`；打开输出的本机 URL，退出时输入 `q`。这是连接实际独立包服务的合成浏览器宿主，所有记录来自隔离样本。

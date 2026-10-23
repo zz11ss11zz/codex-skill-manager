@@ -1,15 +1,15 @@
 <h1 align="center">Codex Skill Manager</h1>
 
-Development status (2026-10-23): `0.1.0-alpha.0`. M2 persistence and migration are accepted. The full-package Windows cache activation blocker is resolved: 55 regression tests and 11 real marketplace lifecycle checks passed, including host Skill discovery. Native-sidebar automation and remote GitHub marketplace distribution remain unverified. See the [current status and next steps](docs/V0.1.0_PLAN.md) and [validation record](docs/VALIDATION.md). This is not a new public release.
+Version **0.1.0** — source distribution under [Apache-2.0](LICENSE). See [CHANGELOG](CHANGELOG.md), [installation](docs/LOCAL_SETUP.md), [known limitations](docs/KNOWN_LIMITATIONS.md) and [validation](docs/VALIDATION.md).
 
 <h3 align="center">Local Skill Inventory · Usage Evidence · Activity Insights</h3>
 
 <p align="center">Explore your local Codex skills and plugins with activity heatmaps, usage rankings, and evidence-aware records.</p>
 
 <p align="center">
-  <img alt="Node.js 20+" src="https://img.shields.io/badge/Node.js-20%2B-43853d">
+  <img alt="Node.js 20.18+" src="https://img.shields.io/badge/Node.js-20.18%2B-43853d">
   <img alt="Public repository" src="https://img.shields.io/badge/Repository-Public-42645c">
-  <img alt="Development preview" src="https://img.shields.io/badge/Status-Development_preview-d49a33">
+  <img alt="Version 0.1.0" src="https://img.shields.io/badge/Version-0.1.0-d49a33">
   <img alt="English and Chinese" src="https://img.shields.io/badge/UI-English_%7C_中文-2878b5">
   <img alt="Local data" src="https://img.shields.io/badge/Data-Local-294c5b">
 </p>
@@ -19,7 +19,7 @@ Development status (2026-10-23): `0.1.0-alpha.0`. M2 persistence and migration a
 
 ## Overview
 
-Codex Skill Manager is an independent, local MCP sidebar prototype. It is **not an official OpenAI product** and has no stable release yet.
+Codex Skill Manager is an independent, local MCP activity dashboard. It is **not an official OpenAI product**.
 
 The current dashboard shows a calendar heatmap, an item heatmap, and two rankings. Switch between plugin tool calls and Skill adoptions, choose a year, and narrow item rankings by date. Hover, click, or use the keyboard to inspect counts. Hatched cells indicate missing coverage rather than zero usage.
 
@@ -27,16 +27,18 @@ Inventory, search, evidence details, and archive controls are currently absent f
 
 ## Quick Start
 
-Requires Node.js 20 or later and a Codex CLI available on PATH.
+Requires Node.js 20.18 or later and a Codex CLI available on PATH.
 
 ```sh
-git clone https://github.com/zz11ss11zz/codex-skill-manager.git
+git clone --branch v0.1.0 --depth 1 https://github.com/zz11ss11zz/codex-skill-manager.git
 cd codex-skill-manager
 npm ci --ignore-scripts
 npm test
 npm run setup:install
 npm run setup:check
 ```
+
+If Git is unavailable or clone fails, download the [source ZIP](https://github.com/zz11ss11zz/codex-skill-manager/archive/refs/tags/v0.1.0.zip), extract it, and run the npm commands above in the extracted directory. ZIP installations are updated by downloading source again; they do not support git pull. The fixed-commit ZIP route passed clean-source acceptance on 2026-10-23 (55 regression tests and six registration/service lifecycle checks); see [validation](docs/VALIDATION.md). This is source installation, not remote marketplace installation.
 
 Reload the MCP service and reopen the sidebar after updating. The entry tool is `open_skill_manager`. Running `npm start` starts a stdio MCP process; it does not open a browser.
 
@@ -86,3 +88,7 @@ The frontend uses the MCP Apps SDK; backend tools use MCP SDK v1. Dependency ver
 `npm run build:marketplace` now creates a self-contained development catalog with the runtime package and companion Skill. See [marketplace setup and the resolved Windows installation issue](docs/MARKETPLACE.md). This is not yet a verified remote GitHub marketplace or published npm package. Protocol and synthetic UI tests do not establish native-sidebar acceptance.
 
 Further project records (Chinese): [Roadmap](docs/ROADMAP.md) · [Validation](docs/VALIDATION.md) · [Complete Chinese documentation](README.zh-CN.md).
+
+## License
+
+Copyright 2026 Zishen Wang. Licensed under [Apache-2.0](LICENSE); see [NOTICE](NOTICE). Dependencies retain their own licenses. Generated standalone packages include third-party license texts.

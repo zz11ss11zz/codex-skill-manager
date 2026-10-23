@@ -2,6 +2,12 @@
 
 This is an M3 development artifact, not a public release or a verified GitHub marketplace. The current complete package passed Windows marketplace installation, host Skill discovery, service startup, restart, replacement, uninstall and data retention. Native sidebar acceptance is still incomplete. The source repository does not yet expose an installable remote catalog. Do not advertise `codex plugin marketplace add zz11ss11zz/codex-skill-manager` as a working installation route.
 
+## Distribution acceptance boundary (current)
+
+Local acceptance applies only to the recorded build. Remote M3 distribution is not accepted. Complete the mechanism/route decision, artifact provenance and clean remote lifecycle gates in [M3-B through M3-D](V0.1.0_PLAN.md) first. Prebuilt large-file uploads are paused. Generated runtime bundles and node_modules do not belong in source Git by default; splitting uploads does not resolve distribution design.
+
+The official documentation lists npm marketplace sources but explicitly disables lifecycle scripts, so automatic install-time builds cannot be assumed. Downloading a Release package and registering a local marketplace is a candidate multi-step route; direct marketplace consumption of a Release ZIP remains unverified. Validate the selected route without a source checkout or old cache, recording versions, source commit, hashes, notices and actual user steps. The local build commands below do not establish remote acceptance.
+
 ## Build
 
 Requires Node.js 20.18+ and the Codex CLI. From the source checkout:
@@ -54,6 +60,6 @@ The diagnostic creates an isolated profile under ignored `work/`, writes synthet
 
 The companion Skill explains available tools and counting semantics. It is not an always-on hook: adoption and call recording require the user's task or standing recording instruction and actual tool availability. Copying the Skill alone does not install the service. Record retries retain IDs; new actual events receive new IDs; missing records are unknown history.
 
-Full-package local installation is accepted. M3 still needs remote catalog verification, and native-sidebar acceptance remains tracked separately. M4 will prepare the release candidate and distributable marketplace artifact after the remaining gates. No release, public directory submission, license grant or configuration change is implied by building this directory.
+The v0.1.0 release uses source installation under Apache-2.0. This local marketplace remains a developer workflow; remote catalog distribution is outside the release scope. Native-sidebar acceptance remains limited as documented in KNOWN_LIMITATIONS.md. Building this directory does not publish a marketplace or change user configuration.
 
 Format reference, checked 2026-10-23: https://developers.openai.com/plugins/build/plugins
