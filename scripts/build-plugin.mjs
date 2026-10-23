@@ -38,4 +38,5 @@ for (const dependency of [...dependencies].sort()) {
 }
 await writeFile(path.join(root, 'THIRD_PARTY_NOTICES.txt'), notices.join('\n\n---\n\n'));
 await copyFile('docs/PLUGIN_TESTING.md', path.join(root, 'README.md'));
+await copyFile('docs/DATA_MIGRATION.md', path.join(root, 'DATA_MIGRATION.md'));
 console.log(`Built ${root}`);

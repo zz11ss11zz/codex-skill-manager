@@ -1,11 +1,11 @@
 import { lstat, readFile, mkdir, open, writeFile, rename, unlink } from 'node:fs/promises';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { dataFile } from './data-path.mjs';
 import { randomUUID } from 'node:crypto';
 
 const hash = value => typeof value === 'string' && /^[a-f0-9]{64}$/.test(value);
 export class SkillNotes {
-  constructor(file = fileURLToPath(new URL('../.local/skill-notes.json', import.meta.url))) { this.file = file; }
+  constructor(file = dataFile('skill-notes.json')) { this.file = file; }
   async read() {
     try {
       const info = await lstat(this.file);

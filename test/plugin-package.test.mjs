@@ -20,13 +20,13 @@ test('standalone package builds and serves MCP resources outside the source tree
     const manifest = JSON.parse(await readFile(path.join(root, 'plugin.json')));
     assert.equal(manifest.version, pkg.version);
     assert.equal(manifest.name, pkg.name);
-    assert.deepEqual((await readdir(root)).sort(), ['README.md', 'THIRD_PARTY_NOTICES.txt', 'assets', 'mcp.json', 'plugin.json', 'server']);
+    assert.deepEqual((await readdir(root)).sort(), ['DATA_MIGRATION.md', 'README.md', 'THIRD_PARTY_NOTICES.txt', 'assets', 'mcp.json', 'plugin.json', 'server']);
     assert.ok((await readFile(path.join(root, manifest.extensions['com.openai'].interface.composerIcon))).length > 0);
     const config = JSON.parse(await readFile(path.join(root, 'mcp.json'))).mcpServers[pkg.name];
     assert.equal(config.command, 'node');
     assert.equal(config.type, 'stdio');
     const substitute = value => value.replaceAll('${PLUGIN_ROOT}', root);
-    transport = new StdioClientTransport({ command: process.execPath, args: config.args.map(substitute), cwd: substitute(config.cwd), stderr: 'pipe' });
+    transport = new StdioClientTransport({ command: process.execPath, args: config.args.map(substitute), cwd: substitute(config.cwd), stderr: 'pipe', env: { CODEX_SKILL_MANAGER_DATA_DIR: path.join(temporary, 'persistent data') } });
     await client.connect(transport);
     assert.equal(client.getServerVersion().version, pkg.version);
     const { tools } = await client.listTools();
@@ -41,6 +41,19 @@ test('standalone package builds and serves MCP resources outside the source tree
     const bundle = await readFile(path.join(root, 'server/src/server.mjs'), 'utf8');
     assert.ok(!bundle.includes(source));
     assert.match(await readFile(path.join(root, 'THIRD_PARTY_NOTICES.txt'), 'utf8'), /@modelcontextprotocol\/sdk/);
+    const call = { id: 'packaged_restart_call_001', plugin: 'demo', tool: 'mcp__codex_apps__demo_read' };
+    assert.ok(!(await client.callTool({ name: 'record_plugin_calls', arguments: { calls: [call] } })).isError);
+    await client.close(); await transport.close();
+    const restarted = new Client({ name: 'restart-test', version: '1' });
+    transport = new StdioClientTransport({ command: process.execPath, args: config.args.map(substitute), cwd: substitute(config.cwd), stderr: 'pipe', env: { CODEX_SKILL_MANAGER_DATA_DIR: path.join(temporary, 'persistent data') } });
+    try {
+      await restarted.connect(transport);
+      assert.ok(!(await restarted.callTool({ name: 'record_plugin_calls', arguments: { calls: [call] } })).isError);
+      const records = JSON.parse(await readFile(path.join(temporary, 'persistent data', 'plugin-calls.json')));
+      assert.equal(records.calls.length, 1);
+      assert.equal(records.calls[0].id, call.id);
+      assert.ok(!(await readdir(path.join(root, 'server'))).includes('.local'));
+    } finally { await restarted.close(); }
   } finally {
     await client.close();
     if (transport) await transport.close();

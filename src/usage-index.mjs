@@ -2,7 +2,7 @@ import { open, lstat, realpath, readdir, mkdir, readFile, writeFile, rename, unl
 import { createHash, randomUUID } from 'node:crypto';
 import path from 'node:path';
 import os from 'node:os';
-import { fileURLToPath } from 'node:url';
+import { dataFile } from './data-path.mjs';
 import { UsageParser, aggregateUsage } from './usage.mjs';
 
 const digest = bytes => createHash('sha256').update(bytes).digest('hex');
@@ -104,7 +104,7 @@ async function discover(roots) {
 
 export function defaultUsageOptions() {
   const home = process.env.CODEX_HOME || path.join(os.homedir(), '.codex');
-  return { roots: [path.join(home, 'sessions'), path.join(home, 'archived_sessions')], stateFile: fileURLToPath(new URL('../.local/usage-index.json', import.meta.url)) };
+  return { roots: [path.join(home, 'sessions'), path.join(home, 'archived_sessions')], stateFile: dataFile('usage-index.json') };
 }
 
 export class UsageIndex {

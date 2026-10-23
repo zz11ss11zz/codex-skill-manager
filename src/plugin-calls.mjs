@@ -1,5 +1,5 @@
 import { lstat, readFile, mkdir, writeFile, rename, unlink } from 'node:fs/promises';
-import { fileURLToPath } from 'node:url';
+import { dataFile } from './data-path.mjs';
 import path from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { acquireAdoptionLock } from './adoption-lock.mjs';
@@ -12,7 +12,7 @@ const validCall = c => c && typeof c.id === 'string' && /^[A-Za-z0-9_-]{16,160}$
 const same = (a,b) => a.plugin === b.plugin && a.tool === b.tool;
 
 export class PluginCalls {
-  constructor(file = fileURLToPath(new URL('../.local/plugin-calls.json', import.meta.url))) { this.file = file; }
+  constructor(file = dataFile('plugin-calls.json')) { this.file = file; }
   async read() {
     try {
       const info = await lstat(this.file);

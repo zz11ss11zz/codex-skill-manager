@@ -11,6 +11,7 @@ import { SkillNotes } from './skill-notes.mjs';
 import { Adoptions } from './adoptions.mjs';
 import { PluginCalls } from './plugin-calls.mjs';
 import { registerDashboard } from './dashboard-resource.mjs';
+import { initializeData } from './data-migration.mjs';
 import { appIcon } from './app-icon.mjs';
 
 export function createServer(roots, { queryPlugins = loadPluginStatus, usageIndex = new UsageIndex(), archiveManager = new ArchiveManager({ roots }), skillNotes = new SkillNotes(), adoptions = new Adoptions(), pluginCalls = new PluginCalls() } = {}) {
@@ -73,7 +74,7 @@ server.registerTool('check_plugin_status', {
 });
 server.registerTool('import_usage', {
   title: '增量导入本机使用信号',
-  description: '读取本机 Codex sessions 和 archived_sessions 日志，增量提取显式标记与读取请求。只将信号、来源定位和读取位置写入项目 .local/usage-index.json，不保存聊天正文，不联网。',
+  description: '读取本机 Codex sessions 和 archived_sessions 日志，增量提取显式标记与读取请求。只将信号、来源定位和读取位置写入独立持久数据目录中的 usage-index.json，不保存聊天正文，不联网。',
   inputSchema: {},
   annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
 }, async () => {
@@ -160,6 +161,7 @@ server.registerTool('cancel_skill_plan', {
 return server;
 }
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
-  await createServer().connect(new StdioServerTransport());
+  const data = await initializeData();
+  if (process.argv.includes('--initialize-data')) console.log(JSON.stringify(data, null, 2));
+  else await createServer().connect(new StdioServerTransport());
 }
-
