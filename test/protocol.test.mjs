@@ -19,12 +19,12 @@ test('stdio handshake, global discovery, resource and isolated inventory result'
   await writeFile(path.join(logs, 'synthetic.jsonl'), JSON.stringify({ type: 'response_item', payload: { type: 'message', id: 'synthetic', role: 'user', content: [{ type: 'input_text', text: '$example' }] } }) + '\n');
   const usageOptions = { roots: [logs], stateFile: path.join(root, 'index', 'usage.json') };
   const archiveOptions = { roots, archiveRoot: path.join(root, 'archive') };
-  const code = `import {createServer} from ${JSON.stringify(new URL('../src/server.mjs', import.meta.url).href)}; import {UsageIndex} from ${JSON.stringify(new URL('../src/usage-index.mjs', import.meta.url).href)}; import {SkillNotes} from ${JSON.stringify(new URL('../src/skill-notes.mjs', import.meta.url).href)}; import {ArchiveManager} from ${JSON.stringify(new URL('../src/archive.mjs', import.meta.url).href)}; import {StdioServerTransport} from '@modelcontextprotocol/sdk/server/stdio.js'; import {Adoptions} from ${JSON.stringify(new URL('../src/adoptions.mjs', import.meta.url).href)}; let queries = 0; await createServer(${JSON.stringify(roots)}, {adoptions: new Adoptions(${JSON.stringify(path.join(root, 'adoptions.json'))}), skillNotes: new SkillNotes(${JSON.stringify(path.join(root, 'notes.json'))}), archiveManager: new ArchiveManager(${JSON.stringify(archiveOptions)}), usageIndex: new UsageIndex(${JSON.stringify(usageOptions)}), queryPlugins: async () => { if (queries++) throw new Error('synthetic failure'); return {plugins: [], checkedAt: '2026-01-01T00:00:00Z', evidence: 'synthetic'}; }}).connect(new StdioServerTransport());`;
+  const code = `import {createServer} from ${JSON.stringify(new URL('../src/server.mjs', import.meta.url).href)}; import {UsageIndex} from ${JSON.stringify(new URL('../src/usage-index.mjs', import.meta.url).href)}; import {SkillNotes} from ${JSON.stringify(new URL('../src/skill-notes.mjs', import.meta.url).href)}; import {ArchiveManager} from ${JSON.stringify(new URL('../src/archive.mjs', import.meta.url).href)}; import {StdioServerTransport} from '@modelcontextprotocol/sdk/server/stdio.js'; import {Adoptions} from ${JSON.stringify(new URL('../src/adoptions.mjs', import.meta.url).href)}; import {PluginCalls} from ${JSON.stringify(new URL('../src/plugin-calls.mjs', import.meta.url).href)}; let queries = 0; await createServer(${JSON.stringify(roots)}, {pluginCalls: new PluginCalls(${JSON.stringify(path.join(root, 'plugin-calls.json'))}), adoptions: new Adoptions(${JSON.stringify(path.join(root, 'adoptions.json'))}), skillNotes: new SkillNotes(${JSON.stringify(path.join(root, 'notes.json'))}), archiveManager: new ArchiveManager(${JSON.stringify(archiveOptions)}), usageIndex: new UsageIndex(${JSON.stringify(usageOptions)}), queryPlugins: async () => { if (queries++) throw new Error('synthetic failure'); return {plugins: [], checkedAt: '2026-01-01T00:00:00Z', evidence: 'synthetic'}; }}).connect(new StdioServerTransport());`;
   const transport = new StdioClientTransport({ command: process.execPath, args: ['--input-type=module', '-e', code], cwd: fileURLToPath(new URL('..', import.meta.url)), stderr: 'pipe' });
   try {
     await client.connect(transport);
     const { tools } = await client.listTools();
-    assert.equal(tools.length, 10);
+    assert.equal(tools.length, 11);
     assert.deepEqual(tools[0]._meta['openai/ui'].entrypoints, [{ type: 'global' }]);
     const uri = tools[0]._meta.ui.resourceUri;
     const { contents } = await client.readResource({ uri });
@@ -41,6 +41,13 @@ test('stdio handshake, global discovery, resource and isolated inventory result'
     assert.equal(result.structuredContent.usage, null);
     assert.equal(result.structuredContent.skills.length, 1);
     assert.equal(result.structuredContent.skills[0].name, 'example');
+    const callArgs={calls:[{id:'protocol-call-00001',plugin:'github',tool:'mcp__codex_apps__github_get_repo'}]};
+    assert.equal((await client.callTool({name:'record_plugin_calls',arguments:callArgs})).isError,undefined);
+    await client.callTool({name:'record_plugin_calls',arguments:callArgs});
+    const callView=(await client.callTool({name:'query_usage',arguments:{timeZone:'Asia/Shanghai'}})).structuredContent;
+    assert.equal(callView.pluginCalls.total,1);
+    assert.equal(callView.adoptions.total,0);
+    assert.equal(callView.pluginCalls.catalog[0].name,'github');
     const skill = result.structuredContent.skills[0];
     const recordArgs = {id:'protocol-batch-000001',skills:['example','example']};
     const recorded = await client.callTool({name:'record_skill_use',arguments:recordArgs});
