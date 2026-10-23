@@ -45,11 +45,20 @@ test('panel switches plugin calls and skill adoptions without mixing or mislabel
   assert.equal(elements.find(e=>e.tag==='select').value,String(new Date().getFullYear()));
   render.setLocale('zh');
   assert.ok(elements.some(e=>e.tag==='h2'&&e.textContent==='插件工具调用'));
+  const ranking=elements.find(e=>e.className==='activity-rankings');
+  const visibleText=e=>[e.textContent||'',...e.children.map(visibleText)].join(' ');
+  const [from,to]=elements.filter(e=>e.tag==='input');
+  const excludedDay=date.endsWith('01-01') ? `${date.slice(0,4)}-01-02` : `${date.slice(0,4)}-01-01`;
+  from.value=excludedDay; to.value=excludedDay; from.listeners.change();
+  assert.ok(!visibleText(ranking).includes('2 次'), 'Top 5 must use the same selected range as the grid');
+  assert.ok(visibleText(ranking).includes('当前范围没有符合条件的项目。'));
+  from.value=date; to.value=date; from.listeners.change();
+  assert.ok(visibleText(ranking).includes('2 次'));
+  from.value=`${date.slice(0,4)}-12-31`; to.value=`${date.slice(0,4)}-01-01`; from.listeners.change();
+  assert.equal(ranking.hidden,true);
+  from.value=date; to.value=date; from.listeners.change();
   render({skills:[],pluginCalls:null,adoptions:null});
   assert.equal(caption.hidden,false);
   assert.ok(elements.some(e=>e.textContent==='插件调用记录暂不可读取。'));
+  assert.equal(elements.find(e=>e.className==='entity-panel').children[1].textContent,'统计暂不可读取，不将失败当作零。');
 });
-
-
-
-

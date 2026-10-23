@@ -43,4 +43,8 @@ node server/src/server.mjs --initialize-data
 
 异常终止可能留下 `<目标>.migration.lock`、旧目录中的 `.lock` 或 `<目标>.staging-UUID`。确认全部相关进程已停止，备份并检查这些文件后再移除锁、重试；程序不根据超时自动抢占未知锁。未发布的暂存目录不会被当成有效数据。格式损坏需从已核实备份恢复到新目录，不能以空文件替代。
 
-自动检查覆盖四类文件保留、重复采用语义、重启/升级后不覆盖新增备注、备份回退、损坏重试、并发启动和旧写锁冲突。真实宿主安装、重启、升级和回退仍待用户检查。反馈时注明步骤、是否保留记录及错误现象即可，无需上传个人记录。
+2026-10-23 已由 Agent 代验收 M2，按用户明确授权记为接受。54 项回归零失败零跳过；实际 Codex CLI 的 MCP 注册和独立包服务完成 8 项隔离数据生命周期检查。浏览器检查完成页面切换、日期筛选、窄面板和损坏状态显示。没有迁移用户真实数据；不等同于 Codex 原生侧栏或 marketplace 安装通过。
+
+复现自动验收：`node scripts/acceptance.mjs dist/plugin-0.1.0-alpha.0-m2-acceptance --mcp-only`。脚本仅创建独立测试配置、技能和日志，结果留在忽略的 `work/acceptance-*`；它会移除自己的 MCP 注册。省略 `--mcp-only` 会尝试本地 marketplace 路径，该路径在当前 Codex CLI 0.163.0-alpha.11.1 上于激活缓存时报 `os error 5`，仍须后续处理。
+
+复现浏览器检查：`node scripts/acceptance-panel.mjs <生成的 result.json>`；打开输出的本机 URL，退出时输入 `q`。这是连接实际独立包服务的合成浏览器宿主，所有记录来自隔离样本。
