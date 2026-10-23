@@ -21,7 +21,8 @@ test('standalone package builds and serves MCP resources outside the source tree
     const manifest = JSON.parse(await readFile(path.join(root, 'plugin.json')));
     assert.equal(manifest.version, pkg.version);
     assert.equal(manifest.name, pkg.name);
-    assert.deepEqual((await readdir(root)).sort(), ['DATA_MIGRATION.md', 'README.md', 'THIRD_PARTY_NOTICES.md', 'assets', 'mcp.json', 'plugin.json', 'server', 'skills']);
+    assert.equal(await readFile(path.join(root, 'LICENSE'), 'utf8'), await readFile(path.join(source, 'LICENSE'), 'utf8'));
+    assert.deepEqual((await readdir(root)).sort(), ['DATA_MIGRATION.md', 'LICENSE', 'NOTICE', 'README.md', 'THIRD_PARTY_NOTICES.md', 'assets', 'mcp.json', 'plugin.json', 'server', 'skills']);
     const inventory = await scanInventory({ skills: path.join(root, 'skills'), agentSkills: path.join(temporary, 'absent-agent-skills'), cache: path.join(temporary, 'absent-cache') });
     assert.equal(inventory.skills.length, 1);
     assert.equal(inventory.skills[0].name, 'skill-manager');

@@ -40,6 +40,7 @@ for (const dependency of [...dependencies].sort()) {
   notices.push(`${info.name}@${info.version}\n${(await Promise.all(files.map(file => readFile(path.join(dependency, file), 'utf8')))).join('\n')}`);
 }
 await writeFile(path.join(root, 'THIRD_PARTY_NOTICES.md'), notices.join('\n\n---\n\n'));
+for (const name of ['LICENSE', 'NOTICE']) await copyFile(name, path.join(root, name));
 await copyFile('docs/PLUGIN_TESTING.md', path.join(root, 'README.md'));
 await copyFile('docs/DATA_MIGRATION.md', path.join(root, 'DATA_MIGRATION.md'));
 await cp('skills/skill-manager', path.join(root, 'skills/skill-manager'), { recursive: true });

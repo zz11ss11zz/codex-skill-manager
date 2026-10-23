@@ -1,6 +1,7 @@
-# M1–M3 development package
+# Local development plugin package
 
-Version: read plugin.json. This is a development checkpoint, not a public release.
+Version: read plugin.json. The v0.1.0 release uses source installation;
+this locally built plugin is an additional developer workflow.
 Requires Node.js 20.18+ on PATH. Runtime JavaScript dependencies are bundled;
 do not run npm install inside this package.
 
@@ -30,5 +31,5 @@ CODEX_SKILL_MANAGER_LEGACY_DIR selects the old .local directory explicitly.
 Set these variables in the service launch environment. Start with disposable
 test data. See DATA_MIGRATION.md for backup, rollback and verification steps.
 
-The package includes third-party license notices. The author's project license
-has not yet been selected; this checkpoint does not grant a new project license.
+The project is licensed under Apache-2.0; see LICENSE and NOTICE in this package.
+Third-party dependencies retain their own licenses in THIRD_PARTY_NOTICES.md.

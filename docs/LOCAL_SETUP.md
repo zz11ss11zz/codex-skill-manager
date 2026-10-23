@@ -1,75 +1,55 @@
-# 本地安装与验证
+# v0.1.0 安装、升级与卸载
 
-目前采用 Codex 原生 MCP 注册，尚未提供插件市场安装包。当前桌面版本的侧栏入口、真实清单、导入结果显示和日期查询已验证；查询反馈位置修复、备注、候选和管理交互仍待宿主验收。
+需要 Windows、Node.js 20.18+ 和 PATH 中可用的 Codex CLI。无需 API 密钥。网络用于获取源码与 npm 依赖；应用不上传日志。其他平台未验证，详见 [已知限制](KNOWN_LIMITATIONS.md)。
 
-## Windows 安装
+## 安装
 
-先在仓库根目录运行：
+从 [v0.1.0 Release](https://github.com/zz11ss11zz/codex-skill-manager/releases/tag/v0.1.0) 下载源码 ZIP，解压到长期保留的位置，在含 package.json 的目录打开 PowerShell：
 
 ```powershell
+node --version
+codex --version
 npm.cmd ci --ignore-scripts
 npm.cmd test
 npm.cmd run setup:install
 npm.cmd run setup:check
 ```
 
-需要 Node.js 20+ 和可用的 Codex CLI。不需要 API 密钥。安装脚本先构建页面，再通过官方 CLI 注册绝对 Node 与入口路径；同名但不同命令/目录的注册会拒绝覆盖。同一路径重复安装不改写现有设置，若已有注册停用，脚本保留其停用状态。
+最后 registered、matches、enabled 应均为 true。脚本先构建页面，再通过官方 CLI 注册当前 Node 和源码入口的绝对路径。同名注册指向其他目录时拒绝覆盖；停用状态不自动改变。
 
-不要删除或移动此工作目录；配置引用其中的服务和构建产物。普通扫描仅读取技能和 manifest，日志导入与归档操作均需单独触发。更新服务代码后需要重新加载 MCP 服务；可通过退出并重开桌面应用完成。
+保存工作后重载 MCP 服务或重开桌面应用。入口工具为 open_skill_manager；npm start 启动 stdio 服务，不会打开网页。不要删除/移动源码目录或 Node。MCP 注册不自动安装配套 Skill，也不等于所有侧栏交互通过。
 
-## 原目录升级
+Git 用户可使用：
 
-在原目录获取新版代码后运行 `npm.cmd ci --ignore-scripts`、`npm.cmd test`、`npm.cmd run setup:install`，然后重新加载服务并从侧栏重新打开面板。M2 起数据独立于源码和包缓存；首次升级前停止旧服务并按 [迁移与回退](DATA_MIGRATION.md) 指定旧 `.local`。代码更新不删除持久数据或独立归档目录。如果改换目录或 Node 可执行文件，先核对旧注册，再从旧安装位置卸载注册后安装新位置，不强制覆盖其他同名服务。
+```powershell
+git clone --branch v0.1.0 --depth 1 https://github.com/zz11ss11zz/codex-skill-manager.git
+cd codex-skill-manager
+```
 
-## 宿主验收
+再执行上方 npm 命令。Git 连接失败时改用 Release ZIP，不关闭 TLS 校验。ZIP 目录不能 git pull。
 
-保存当前工作后退出并重新打开 Codex 桌面应用。检查侧栏是否能找到“能力管理器”或对应服务入口。记录：是否出现、是否能固定、点击能否显示页面、页面是否收到真实清单、再次重启是否保留。
+## 升级与备份
 
-更新时先完成构建，再重新加载服务；关闭旧能力管理器面板，从侧栏重新打开。当前 UI 资源地址含页面内容哈希，构建变化会产生新地址。如果仍看到 `PROTOTYPE`，说明旧页面或旧服务仍在使用，不能视为升级成功。
+先停止旧服务并备份持久数据。默认数据在 CODEX_HOME 下 skill-manager/data-v1；未设置 CODEX_HOME 时为用户目录的 .codex/skill-manager/data-v1。CODEX_SKILL_MANAGER_DATA_DIR 可指定其他绝对目录。
 
-加入归档功能后的页面标题标识为 `LOCAL`，同时显示“扫描只读”和“归档与恢复记录”。`READ ONLY` 是此前清单版的标识；不要只凭标题判断所有新工具均已加载。
+- 原目录更新源码后重新安装依赖、测试、setup:install，并重载服务。
+- 换目录时先从旧目录运行 npm.cmd run setup:uninstall，再从新目录安装；不强制覆盖其他同名服务。
+- 旧 .local 按 [迁移与回退](DATA_MIGRATION.md) 明确来源并核验。原文件和时点备份保留，不用旧快照覆盖后续新增记录。
+- 旧目录丢失时，先用 codex mcp get codex-skill-manager 核对，再通过官方 CLI 移除确认过的注册。
 
-如果没有入口，保留版本号与 MCP 连接状态；不要改隐藏开关。MCP 工具能调用或资源能读取，并不能证明侧栏功能已通过。
-
-本地注册命令不会自动重启桌面应用。重启由用户执行，避免中断其他进行中的工作。
-
-## 卸载注册
+## 卸载
 
 ```powershell
 npm.cmd run setup:uninstall
+npm.cmd run setup:check
 ```
 
-然后重启桌面应用。该命令只移除与当前目录匹配的服务配置，不删除项目文件、持久数据、旧 `.local` 或归档文件。安装、查询和移除必须在同一用户配置环境中运行。若原目录已丢失，可先用 `codex mcp get codex-skill-manager` 核对，再用官方 `codex mcp remove codex-skill-manager` 移除该注册。
+registered 应为 false，再重载宿主。仅移除当前目录对应的注册，源码、持久数据、旧 .local 和技能归档保留。移除 marketplace 与 MCP 注册不同。
 
-## 验证范围
+## 排错与验证
 
-| 项目 | 当前证据 |
-| --- | --- |
-| Windows / Node 20.18.1 | 构建、协议、文件管理及增量导入测试通过 |
-| 临时 Codex 配置安装/重复安装/卸载 | 官方 CLI 实测通过；无关配置保持 |
-| 实际桌面侧栏 | 入口、真实清单及导入结果显示已核；最新整批控件交互待验 |
-| 原目录完整升级与宿主重启 | 资源地址版本机制已测；最新版端到端仍待验 |
-| macOS / Linux | 未验证；归档执行明确不支持 |
-| 插件市场安装包 | 尚未提供，当前是 MCP 注册 |
+普通打开仅读取已有统计，import_usage 才显式导入日志；未记录不表示从未使用。当前页面展示活动视图，其他能力通过后台工具操作。
 
-可选 CLI 回归测试在临时配置中运行：`$env:SKILL_MANAGER_TEST_CODEX='1'; npm.cmd test`。未设置该测试开关时跳过 CLI 注册测试，其余测试仍运行；测试不会写入用户实际 Codex 配置。
+遇到损坏文件/写锁/迁移失败，保留原文件和错误，停止相关服务后按迁移说明恢复；不要自动删除锁、索引或源日志。Windows 技能归档恢复不覆盖同名文件。
 
-## 使用信号索引
-
-“增量导入本机使用信号”读取当前用户的 `sessions` 和 `archived_sessions`。普通技能扫描不读日志。每次至多 32 MiB；页面中的剩余字节不为零时，继续导入或等待正在写入的末行完成。时间范围是已读记录的最早/最晚时间，不保证中间每个会话都完整覆盖。读取失败文件本次不计入统计，问题列表会说明。
-
-索引位于独立持久数据目录的 `usage-index.json`（默认 `$CODEX_HOME/skill-manager/data-v1`，详见 [迁移说明](DATA_MIGRATION.md)），不保存原文；这是本机私有运行文件，不要提交或上传。文件截断、身份变化及首尾边界变化会触发重建；不提供已读中段任意改写的完整检测保证。
-
-若导入提示被占用，先确认没有正在运行的导入。只有确认上次进程异常退出后，才移除 持久数据目录中的 `usage-index.json.lock`。若索引损坏或需完整重算，保留原索引并将它移到另一个本地备份名称，再点击导入从头读取。不要删除源会话日志。索引达到 64 MiB 时会拒绝覆盖原索引，需要迁移存储后继续。
-
-## 用户技能归档与恢复
-
-仅支持 Windows 下两个用户技能根目录的直接子目录，不修改系统技能、插件缓存或启停配置。先预览，核对范围后执行。归档移动使用 Windows 原生目录重命名；测试已验证目标为已有空目录时同样拒绝覆盖。跨文件系统移动失败时不会回退为复制后删除。
-
-归档目录 `CODEX_HOME/skill-manager-archive` 位于技能扫描目录之外，每项包含 `record.json` 和保留原文件的 `skill` 目录。不要手动删除或上传该目录。恢复需原位置为空缺且归档指纹仍一致；同名冲突请先人工处理。
-
-异常退出可能留下 `operation.lock` 或 `pending-*` 记录。先检查是否仍有操作进行；只有确认进程已退出后再处理残留锁。若仅归档位置存在且指纹一致，可重新预览恢复；两处同时存在、两处均不存在或内容已变化时，保留文件并人工检查，程序不会覆盖或自动删除。移动成功但记录更新失败时不能仅凭状态字段断言失败，须核对两处实际文件。卸载 MCP 服务不会删除这些可恢复文件。
-
-### 使用统计索引升级到 v2
-
-v2 排除生成子会话（包括审批审查）并过滤明显脚本变量语法。首次导入发现 v1 索引时，会保留 持久数据目录中的 `usage-index.json.v1-<id>.bak`，再按新规则从头分批解析；备份和索引均不上传。旧版服务不支持 v2，请重载服务后再导入。升级后的计数下降是去除误报，不能据此推断技能停用。裸标记仍可能是讨论或变量；生成子会话的执行信号也暂不纳入，不宣称完整调用覆盖。
+可选 CLI 回归：`$env:SKILL_MANAGER_TEST_CODEX='1'; npm.cmd test`。测试使用隔离数据。具体范围见 [VALIDATION.md](VALIDATION.md)；问题提交至 [GitHub Issues](https://github.com/zz11ss11zz/codex-skill-manager/issues)，只附脱敏错误和复现步骤。

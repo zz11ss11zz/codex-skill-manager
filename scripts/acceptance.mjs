@@ -100,7 +100,10 @@ async function start(pkg, extra = {}) {
   const transport = new StdioClientTransport({ command: registered?.command || process.execPath, args: registered?.args || config.args.map(substitute), cwd: substitute(config.cwd), env: { ...env, ...extra }, stderr: 'pipe' });
   const client = new Client({ name: 'isolated-acceptance', version: '1' });
   current = { client, transport };
-  await client.connect(transport);
+  let diagnostics = '';
+  transport.stderr?.on('data', chunk => { diagnostics = (diagnostics + chunk.toString()).slice(-8000); });
+  try { await client.connect(transport); }
+  catch (error) { throw new Error(`${error.message}\nPackaged service stderr: ${diagnostics || '(empty)'}`, { cause: error }); }
   assert.equal(client.getServerVersion().version, JSON.parse(await readFile(path.join(packageRoot, 'plugin.json'))).version);
   return client;
 }
