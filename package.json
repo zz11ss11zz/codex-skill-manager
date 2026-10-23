@@ -10,11 +10,12 @@
   "scripts": {
     "build": "node scripts/build.mjs",
     "start": "node src/server.mjs",
-    "test": "npm run build && node --test",
+    "test": "npm run build && node --test test",
     "setup:check": "node scripts/setup.mjs check",
     "setup:install": "node scripts/setup.mjs install",
     "setup:uninstall": "node scripts/setup.mjs uninstall",
-    "build:plugin": "npm run build && node scripts/build-plugin.mjs"
+    "build:plugin": "npm run build && node scripts/build-plugin.mjs",
+    "build:marketplace": "npm run build && node scripts/build-marketplace.mjs"
   },
   "files": [
     "src",

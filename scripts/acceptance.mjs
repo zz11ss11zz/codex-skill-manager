@@ -13,6 +13,7 @@ import { SkillNotes } from '../src/skill-notes.mjs';
 import { Adoptions } from '../src/adoptions.mjs';
 import { PluginCalls } from '../src/plugin-calls.mjs';
 import { UsageIndex } from '../src/usage-index.mjs';
+import { listHostSkills } from './host-skills.mjs';
 
 const run = promisify(execFile), repo = fileURLToPath(new URL('..', import.meta.url));
 const packageRoot = path.resolve(process.argv[2] || 'dist/plugin-0.1.0-alpha.0-m2');
@@ -55,7 +56,12 @@ async function install() {
   return registered;
 }
 async function uninstall() {
-  if (!mcpOnly) return cli(['plugin', 'remove', 'codex-skill-manager@manager-acceptance', '--json']);
+  if (!mcpOnly) {
+    await cli(['plugin', 'remove', 'codex-skill-manager@manager-acceptance', '--json']);
+    const list = JSON.parse(await cli(['plugin', 'list', '--json']));
+    assert.ok(!list.installed.some(p => p.pluginId === 'codex-skill-manager@manager-acceptance'));
+    return;
+  }
   await cli(['mcp', 'remove', 'manager-acceptance']);
   assert.ok(!JSON.parse(await cli(['mcp', 'list', '--json'])).some(s => s.name === 'manager-acceptance'));
 }
@@ -65,6 +71,18 @@ await save(path.join(root, 'cli-install.json'), JSON.stringify(installed, null, 
 console.log(`ACCEPTANCE_ROOT ${root}`);
 console.log(JSON.stringify(installed));
 check(mcpOnly ? 'real CLI MCP registration of standalone package' : 'real CLI marketplace installation');
+if (!mcpOnly) {
+  const list = JSON.parse(await cli(['plugin', 'list', '--json']));
+  const plugin = list.installed.find(p => p.pluginId === 'codex-skill-manager@manager-acceptance');
+  assert.equal(plugin?.enabled, true); assert.equal(plugin?.installed, true);
+  const discovered = await listHostSkills({ cwd: root, env, cli: process.env.CODEX_SKILL_MANAGER_CLI || 'codex' });
+  const entry = discovered.data.flatMap(d => d.skills).find(s => s.pluginId === plugin.pluginId && s.name === 'codex-skill-manager:skill-manager');
+  assert.equal(entry?.enabled, true);
+  assert.equal(await readFile(entry.path, 'utf8'), await readFile(path.join(packageRoot, 'skills/skill-manager/SKILL.md'), 'utf8'));
+  assert.ok(path.resolve(entry.path).startsWith(path.resolve(inventoryRoots.cache) + path.sep));
+  await save(path.join(root, 'host-skills.json'), JSON.stringify({ skill: entry, errors: discovered.data.flatMap(d => d.errors) }, null, 2));
+  check('real app-server discovers the enabled Skill from installed cache');
+}
 
 // Locate the installed cache instead of treating the marketplace source as an install.
 async function cachedPackage() {
@@ -94,6 +112,11 @@ async function tool(name, args = {}) {
 try {
   let cached = await cachedPackage();
   await start(cached, { CODEX_SKILL_MANAGER_LEGACY_DIR: legacy });
+  const entryTool = (await current.client.listTools()).tools.find(t => t.name === 'open_skill_manager');
+  const resource = await current.client.readResource({ uri: entryTool._meta.ui.resourceUri });
+  assert.equal(resource.contents[0].text, await readFile(path.join(repo, 'dist/dashboard.html'), 'utf8'));
+  await assert.rejects(current.client.readResource({ uri: 'ui://codex-skill-manager/dashboard-0000000000000000.html' }));
+  check('installed bundle serves byte-identical UI and rejects unknown revisions');
   assert.deepEqual(await hashes(persistent), original);
   assert.deepEqual(await hashes(path.join(persistent, 'migration-backup')), original);
   let opened = await tool('open_skill_manager');
@@ -125,6 +148,14 @@ try {
   await stop();
   const updated = await hashes(persistent);
   await cp(persistent, path.join(root, 'stopped-backup'), { recursive: true, errorOnExist: true, force: false });
+  if (!mcpOnly) {
+    await install();
+    cached = await cachedPackage();
+    await start(cached); opened = await tool('open_skill_manager');
+    assert.equal(opened.adoptions.total, 4); assert.equal(opened.pluginCalls.total, 2);
+    assert.deepEqual(await hashes(persistent), updated); await stop();
+    check('same-version marketplace replacement retains data and starts successfully');
+  }
   await uninstall();
   assert.deepEqual(await hashes(persistent), updated);
   check('real CLI uninstall preserves independent data');

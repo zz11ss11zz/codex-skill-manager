@@ -1,6 +1,6 @@
 <h1 align="center">Codex Skill Manager</h1>
 
-Development status (2026-10-23): `0.1.0-alpha.0`. M2 persistence and migration are accepted: 54 regression tests and eight packaged lifecycle checks passed. MCP registration works; local-marketplace installation of the full package still fails during Windows cache activation, and native-sidebar automation remains unverified. See the [current status and next steps](docs/V0.1.0_PLAN.md) and [validation record](docs/VALIDATION.md). This is not a new public release.
+Development status (2026-10-23): `0.1.0-alpha.0`. M2 persistence and migration are accepted. The full-package Windows cache activation blocker is resolved: 55 regression tests and 11 real marketplace lifecycle checks passed, including host Skill discovery. Native-sidebar automation and remote GitHub marketplace distribution remain unverified. See the [current status and next steps](docs/V0.1.0_PLAN.md) and [validation record](docs/VALIDATION.md). This is not a new public release.
 
 <h3 align="center">Local Skill Inventory · Usage Evidence · Activity Insights</h3>
 
@@ -83,6 +83,6 @@ The repository contains code, documentation, and synthetic test data. README bad
 
 The frontend uses the MCP Apps SDK; backend tools use MCP SDK v1. Dependency versions are pinned. No Python runtime is required.
 
-The current project does not publish an npm package or marketplace installer. Protocol and synthetic UI tests do not establish full live-host acceptance.
+`npm run build:marketplace` now creates a self-contained development catalog with the runtime package and companion Skill. See [marketplace setup and the resolved Windows installation issue](docs/MARKETPLACE.md). This is not yet a verified remote GitHub marketplace or published npm package. Protocol and synthetic UI tests do not establish native-sidebar acceptance.
 
 Further project records (Chinese): [Roadmap](docs/ROADMAP.md) · [Validation](docs/VALIDATION.md) · [Complete Chinese documentation](README.zh-CN.md).

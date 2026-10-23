@@ -7,6 +7,7 @@ import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
+import { scanInventory } from '../src/inventory.mjs';
 
 test('standalone package builds and serves MCP resources outside the source tree', { timeout: 30000 }, async () => {
   const temporary = await mkdtemp(path.join(os.tmpdir(), 'skill-plugin-'));
@@ -20,7 +21,10 @@ test('standalone package builds and serves MCP resources outside the source tree
     const manifest = JSON.parse(await readFile(path.join(root, 'plugin.json')));
     assert.equal(manifest.version, pkg.version);
     assert.equal(manifest.name, pkg.name);
-    assert.deepEqual((await readdir(root)).sort(), ['DATA_MIGRATION.md', 'README.md', 'THIRD_PARTY_NOTICES.txt', 'assets', 'mcp.json', 'plugin.json', 'server']);
+    assert.deepEqual((await readdir(root)).sort(), ['DATA_MIGRATION.md', 'README.md', 'THIRD_PARTY_NOTICES.md', 'assets', 'mcp.json', 'plugin.json', 'server', 'skills']);
+    const inventory = await scanInventory({ skills: path.join(root, 'skills'), agentSkills: path.join(temporary, 'absent-agent-skills'), cache: path.join(temporary, 'absent-cache') });
+    assert.equal(inventory.skills.length, 1);
+    assert.equal(inventory.skills[0].name, 'skill-manager');
     assert.ok((await readFile(path.join(root, manifest.extensions['com.openai'].interface.composerIcon))).length > 0);
     const config = JSON.parse(await readFile(path.join(root, 'mcp.json'))).mcpServers[pkg.name];
     assert.equal(config.command, 'node');
@@ -36,11 +40,12 @@ test('standalone package builds and serves MCP resources outside the source tree
     assert.match(contents[0].text, /id="activity-panel"/);
     assert.ok(contents[0].text.includes(pkg.version));
     assert.ok(contents[0].text.includes(`版本 / Version v${pkg.version}</span>`));
-    const revision = uri.match(/dashboard-([a-f0-9]+)\.html/)[1];
-    assert.equal(await readFile(path.join(root, `server/dist/revisions/${revision}.html`), 'utf8'), contents[0].text);
+    assert.equal(await readFile(path.join(source, 'dist/dashboard.html'), 'utf8'), contents[0].text);
+    assert.ok(!(await readdir(path.join(root, 'server'))).includes('dist'));
+    await assert.rejects(client.readResource({ uri: 'ui://codex-skill-manager/dashboard-0000000000000000.html' }));
     const bundle = await readFile(path.join(root, 'server/src/server.mjs'), 'utf8');
     assert.ok(!bundle.includes(source));
-    assert.match(await readFile(path.join(root, 'THIRD_PARTY_NOTICES.txt'), 'utf8'), /@modelcontextprotocol\/sdk/);
+    assert.match(await readFile(path.join(root, 'THIRD_PARTY_NOTICES.md'), 'utf8'), /@modelcontextprotocol\/sdk/);
     const call = { id: 'packaged_restart_call_001', plugin: 'demo', tool: 'mcp__codex_apps__demo_read' };
     assert.ok(!(await client.callTool({ name: 'record_plugin_calls', arguments: { calls: [call] } })).isError);
     await client.close(); await transport.close();
