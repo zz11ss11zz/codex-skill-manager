@@ -1,3 +1,4 @@
+import packageInfo from '../package.json' with { type: 'json' };
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { pathToFileURL } from 'node:url';
@@ -43,7 +44,7 @@ async function inventoryWithArchives() {
   catch { inventory.archives = []; inventory.issues.push({ path: archiveManager.archiveRoot, reason: '归档记录无法读取' }); }
   return inventory;
 }
-const server = new McpServer({ name: 'codex-skill-manager', version: '0.0.1', icons: [appIcon] });
+const server = new McpServer({ name: 'codex-skill-manager', version: packageInfo.version, icons: [appIcon] });
 const uri = registerDashboard(server);
 server.registerTool('open_skill_manager', {
   title: '能力管理器',
@@ -161,3 +162,4 @@ return server;
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   await createServer().connect(new StdioServerTransport());
 }
+

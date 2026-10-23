@@ -1,3 +1,4 @@
+import packageInfo from '../package.json' with { type: 'json' };
 import { resolveLocale, translator } from './i18n.mjs';
 let locale = resolveLocale(undefined, navigator.language);
 let t = translator(locale);
@@ -5,7 +6,7 @@ import { App } from '@modelcontextprotocol/ext-apps';
 import { createActivityPanel } from './activity-ui.mjs';
 const updateActivity = createActivityPanel(document.querySelector('#activity-panel'), locale);
 const status = document.querySelector('#status');
-const app = new App({ name: 'codex-skill-manager', version: '0.0.1' }, {});
+const app = new App({ name: 'codex-skill-manager', version: packageInfo.version }, {});
 let connected = false, hasData = false, lastRefresh = 0, pending = null;
 function receive(result) {
   const data = result.structuredContent;
