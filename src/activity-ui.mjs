@@ -85,15 +85,19 @@ export function createActivityPanel(root, locale = 'zh') {
     entityTitle.textContent = t("{0}使用量排序", kind === 'plugins' ? t("插件") : 'Skill');
     for (const input of [dateFrom, dateTo]) { input.min = `${year}-01-01`; input.max = `${year}-12-31`; }
     const validRange = dateFrom.value && dateTo.value && dateFrom.value <= dateTo.value && dateFrom.checkValidity() && dateTo.checkValidity();
+    let rankingView = view;
+    rankings.hidden = !validRange;
     entityGrid.replaceChildren();
     entityTip.textContent = t("悬停或聚焦格子查看名称与次数。");
     if (!validRange) {
       entityCaption.textContent = t("请选择 {0} 年内有效的起止日期，开始日期不得晚于结束日期。", year);
     } else {
       const ranked = activityView({...current, skills: [...current.skills, ...historical], usage}, kind, year, metric, {from: dateFrom.value, to: dateTo.value});
+      rankingView = ranked;
       const coverage = ranked.coverage;
       const scope = coverage.hasOverlap ? t("统计覆盖 {0} 至 {1}{2}", coverage.effectiveFrom, coverage.effectiveTo, coverage.incomplete ? t("（数据不完整）") : '') : t("所选日期无统计覆盖");
       entityCaption.textContent = t("{0} 至 {1} · {2} · 已记录 {3} 次{4} · 每格一项，从左到右、从上到下按次数降序 · 颜色越深次数越多", dateFrom.value, dateTo.value, scope, ranked.total, label);
+      if (!ranked.ready) entityCaption.textContent = t("统计暂不可读取，不将失败当作零。");
       const maxCount = Math.max(1, ...ranked.all.map(e => e.total));
       ranked.all.forEach((entry, index) => {
         const level = entry.total ? Math.min(4, Math.max(1, Math.ceil(4 * entry.total / maxCount))) : 0;
@@ -106,7 +110,7 @@ export function createActivityPanel(root, locale = 'zh') {
       if (!ranked.all.length) entityTip.textContent = ranked.ready ? t("当前没有可展示的项目。") : t("尚无统计数据。");
     }
     rankings.replaceChildren();
-    for (const [title, entries] of [[t("最常用{0} · 前 5", kind === 'plugins' ? t("插件") : ' Skill'), view.top], [t("未观测到使用 · 最多 5 项"), view.unused]]) {
+    for (const [title, entries] of [[t("最常用{0} · 前 5", kind === 'plugins' ? t("插件") : ' Skill'), rankingView.top], [t("未观测到使用 · 最多 5 项"), rankingView.unused]]) {
       const section = node('section'); section.append(node('h3', title));
       const list = node('ol', undefined, 'activity-ranking');
       for (const entry of entries) {
@@ -141,5 +145,3 @@ export function createActivityPanel(root, locale = 'zh') {
   };
   return update;
 }
-
-

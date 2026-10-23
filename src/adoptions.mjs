@@ -1,5 +1,5 @@
 import { lstat, readFile, mkdir, writeFile, rename, unlink } from 'node:fs/promises';
-import { fileURLToPath } from 'node:url';
+import { dataFile } from './data-path.mjs';
 import path from 'node:path';
 import { createHash, randomUUID } from 'node:crypto';
 import { acquireAdoptionLock } from './adoption-lock.mjs';
@@ -7,7 +7,7 @@ import { acquireAdoptionLock } from './adoption-lock.mjs';
 const validId = value => typeof value === 'string' && /^[A-Za-z0-9_-]{16,80}$/.test(value);
 const normalize = value => value.replaceAll('\\', '/').replace(/\/$/, '').toLowerCase();
 export class Adoptions {
-  constructor(file = fileURLToPath(new URL('../.local/adoptions.json', import.meta.url))) { this.file = file; }
+  constructor(file = dataFile('adoptions.json')) { this.file = file; }
   async read() {
     try {
       const info = await lstat(this.file);

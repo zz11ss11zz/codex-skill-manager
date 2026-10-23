@@ -1,5 +1,7 @@
 <h1 align="center">Codex Skill Manager</h1>
 
+Development status (2026-10-23): `0.1.0-alpha.0`. M2 persistence and migration are accepted: 54 regression tests and eight packaged lifecycle checks passed. MCP registration works; local-marketplace installation of the full package still fails during Windows cache activation, and native-sidebar automation remains unverified. See the [current status and next steps](docs/V0.1.0_PLAN.md) and [validation record](docs/VALIDATION.md). This is not a new public release.
+
 <h3 align="center">Local Skill Inventory · Usage Evidence · Activity Insights</h3>
 
 <p align="center">Explore your local Codex skills and plugins with activity heatmaps, usage rankings, and evidence-aware records.</p>
@@ -71,7 +73,7 @@ Recording details: [Skill adoptions (Chinese)](docs/ADOPTION_RECORDING.md) · [P
 
 ## Privacy
 
-Runtime records stay on the local machine under the ignored `.local/` directory. The application adds no telemetry, uploads, or external model service. Statistical indexes retain required references and timestamps, not full chat transcripts. Explicit plugin-installation verification can invoke `codex plugin list --json`, which may contact configured marketplaces.
+Runtime records stay on the local machine under `$CODEX_HOME/skill-manager/data-v1` (default `~/.codex/skill-manager/data-v1`); see [migration and rollback](docs/DATA_MIGRATION.md). The application adds no telemetry, uploads, or external model service. Statistical indexes retain required references and timestamps, not full chat transcripts. Explicit plugin-installation verification can invoke `codex plugin list --json`, which may contact configured marketplaces.
 
 The repository contains code, documentation, and synthetic test data. README badges load from Shields.io when viewing this page; they are not part of the dashboard.
 

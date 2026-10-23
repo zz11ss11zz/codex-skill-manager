@@ -18,7 +18,7 @@ test('global panel loads without a pushed result and refreshes on return without
     connect() { return Promise.resolve(); }
     callServerTool() { requests++; return new Promise((resolve,reject)=>{resolveRequest=resolve;rejectRequest=reject;}); }
   }
-  vm.runInNewContext(source, {App,navigator:{language:"zh-CN"},resolveLocale,translator,createActivityPanel:()=>Object.assign(data=>updates.push(data.adoptions.total),{setLocale(){}}),document:doc,
+  vm.runInNewContext(source, {packageInfo:{version:"test"},App,navigator:{language:"zh-CN"},resolveLocale,translator,createActivityPanel:()=>Object.assign(data=>updates.push(data.adoptions.total),{setLocale(){}}),document:doc,
     window:{addEventListener:(name,fn)=>{windowEvents[name]=fn;}},Date:{now:()=>now}});
   await tick(); assert.equal(requests,1);
   windowEvents.focus(); docEvents.visibilitychange(); assert.equal(requests,1);
@@ -38,7 +38,7 @@ test('an initial host result avoids a second startup scan', async () => {
     connect() { this.ontoolresult(result(1)); return Promise.resolve(); }
     callServerTool() { calls++; return Promise.resolve(result(1)); }
   }
-  vm.runInNewContext(source,{App,navigator:{language:"zh-CN"},resolveLocale,translator,createActivityPanel:()=>Object.assign(()=>{},{setLocale(){}}),document:{documentElement:{},querySelector:()=>({setAttribute(){}}),addEventListener:()=>{}},
+  vm.runInNewContext(source,{packageInfo:{version:"test"},App,navigator:{language:"zh-CN"},resolveLocale,translator,createActivityPanel:()=>Object.assign(()=>{},{setLocale(){}}),document:{documentElement:{},querySelector:()=>({setAttribute(){}}),addEventListener:()=>{}},
     window:{addEventListener:()=>{}},Date});
   await tick(); assert.equal(calls,0);
 });

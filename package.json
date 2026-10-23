@@ -1,11 +1,11 @@
 {
   "name": "codex-skill-manager",
-  "version": "0.0.1",
+  "version": "0.1.0-alpha.0",
   "private": true,
   "type": "module",
   "description": "Local Codex skill manager: sidebar integration prototype",
   "engines": {
-    "node": ">=20"
+    "node": ">=20.18"
   },
   "scripts": {
     "build": "node scripts/build.mjs",
@@ -13,9 +13,18 @@
     "test": "npm run build && node --test",
     "setup:check": "node scripts/setup.mjs check",
     "setup:install": "node scripts/setup.mjs install",
-    "setup:uninstall": "node scripts/setup.mjs uninstall"
+    "setup:uninstall": "node scripts/setup.mjs uninstall",
+    "build:plugin": "npm run build && node scripts/build-plugin.mjs"
   },
-  "files": ["src", "scripts", "test", "docs", "dist/dashboard.html", "dist/revisions", "README.md"],
+  "files": [
+    "src",
+    "scripts",
+    "test",
+    "docs",
+    "dist/dashboard.html",
+    "dist/revisions",
+    "README.md"
+  ],
   "dependencies": {
     "@modelcontextprotocol/ext-apps": "1.7.5",
     "@modelcontextprotocol/sdk": "1.32.1",
