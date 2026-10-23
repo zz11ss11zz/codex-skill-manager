@@ -44,7 +44,11 @@ export function activityView(inventory, kind, year, metric = 'reads', range = {}
   const entities = new Map(), instanceEntity = new Map();
   const uncertain = new Set(activity?.uncertainIds || []);
   const registry = inventory.pluginRegistry?.plugins || [];
-  for (const skill of inventory.skills) {
+  if (metric === 'calls' && kind === 'plugins') for (const plugin of inventory.usage?.catalog || []) {
+    entities.set(plugin.id,{...plugin,total:0,allSignals:0,eligibleZero:true,uncertain:false});
+    instanceEntity.set(plugin.id,plugin.id);
+  }
+  for (const skill of metric === 'calls' ? [] : inventory.skills) {
     const owner = skill.owner;
     const pluginId = owner ? `${owner.directory || owner.name}@${owner.marketplace}` : null;
     const installed = !skill.historical && (!owner || registry.some(p => p.id === pluginId && p.version === owner.version));
@@ -64,9 +68,9 @@ export function activityView(inventory, kind, year, metric = 'reads', range = {}
     for (const entry of day.entries) {
       const entity = entities.get(instanceEntity.get(entry.id));
       if (!entity) continue;
-      const count = metric === 'adoptions' ? (entry.adoptions || 0) : metric === 'explicit' ? (entry.explicit || 0) : (entry.reads || 0);
+      const count = metric === 'calls' ? (entry.calls || 0) : metric === 'adoptions' ? (entry.adoptions || 0) : metric === 'explicit' ? (entry.explicit || 0) : (entry.reads || 0);
       entity.total += count; total += count;
-      entity.allSignals += (entry.explicit || 0) + (entry.reads || 0) + (entry.adoptions || 0);
+      entity.allSignals += (entry.explicit || 0) + (entry.reads || 0) + (entry.adoptions || 0) + (entry.calls || 0);
     }
     days.set(day.date, total);
   }

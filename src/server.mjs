@@ -8,9 +8,10 @@ import { ArchiveManager } from './archive.mjs';
 import { z } from 'zod';
 import { SkillNotes } from './skill-notes.mjs';
 import { Adoptions } from './adoptions.mjs';
+import { PluginCalls } from './plugin-calls.mjs';
 import { registerDashboard } from './dashboard-resource.mjs';
 
-export function createServer(roots, { queryPlugins = loadPluginStatus, usageIndex = new UsageIndex(), archiveManager = new ArchiveManager({ roots }), skillNotes = new SkillNotes(), adoptions = new Adoptions() } = {}) {
+export function createServer(roots, { queryPlugins = loadPluginStatus, usageIndex = new UsageIndex(), archiveManager = new ArchiveManager({ roots }), skillNotes = new SkillNotes(), adoptions = new Adoptions(), pluginCalls = new PluginCalls() } = {}) {
 let pluginSnapshot = null, usageSnapshot = null;
 let usagePeriod = { timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone };
 async function inventoryWithArchives() {
@@ -24,6 +25,8 @@ async function inventoryWithArchives() {
     }
   }
   inventory.usage = usageSnapshot;
+  try { inventory.pluginCalls = await pluginCalls.summary(usagePeriod); }
+  catch { inventory.pluginCalls = null; inventory.issues.push({path:pluginCalls.file,reason:'插件调用记录无法读取；未将失败当作零'}); }
   try { inventory.adoptions = await adoptions.summary(usagePeriod); }
   catch { inventory.adoptions = null; inventory.issues.push({path:adoptions.file,reason:'采用记录无法读取；未将读取失败当作零使用'}); }
   inventory.managementSupported = process.platform === 'win32';
@@ -89,15 +92,23 @@ server.registerTool('query_usage', {
   try {
     const inventory = await inventoryWithArchives();
     const adoptionSummary = await adoptions.summary(period);
+    const callSummary = await pluginCalls.summary(period);
     let result = null;
     try { result = await usageIndex.query(inventory.skills, period); }
     catch (error) { if (error.code !== 'ENOENT') throw error; }
     usagePeriod = period; usageSnapshot = result; inventory.usage = result;
     inventory.adoptions = adoptionSummary;
+    inventory.pluginCalls = callSummary;
     return { content: [{ type: 'text', text: '已按期间查询已有索引；未读取新日志。' }], structuredContent: inventory };
   } catch { return { isError: true, content: [{ type: 'text', text: '查询失败。请检查时间范围，并先导入一次使用信号更新索引；原结果保留。' }] }; }
 });
 const managementError = error => ({ isError: true, content: [{ type: 'text', text: error.code ? '文件操作失败，请检查路径权限及操作记录；未确认成功。' : error.message }] });
+server.registerTool('record_plugin_calls', {
+  title:'记录插件工具调用',
+  description:'实际调用插件工具后就近合批记录，每项一次调用尝试（失败也计）；id 使用调用 ID 或事先生成的 UUID，记录重试沿用，新的实际调用使用新 ID。plugin 为工具所属插件命名空间，如 github；tool 为完整 mcp__codex_apps__github_get_repo 名称。仅记录已发生调用，不记录发现、计划或历史补记。不传参数或结果正文，与 Skill 采用分开。',
+  inputSchema:{calls:z.array(z.object({id:z.string().regex(/^[A-Za-z0-9_-]{16,160}$/),plugin:z.string().regex(/^[a-z0-9][a-z0-9_-]{0,79}$/),tool:z.string().max(240)}).strict()).min(1).max(32)},
+  annotations:{readOnlyHint:false,destructiveHint:false,openWorldHint:false},
+},async ({calls})=>{try {await pluginCalls.record(calls); return {content:[{type:'text',text:'OK'}]};} catch(error){return managementError(error);} });
 server.registerTool('record_skill_use', {
   title: '记录技能采用',
   description: '采用技能时批量记录。id 为新批次唯一 ID（重试沿用）；skills 为技能名、插件名:技能名或准确路径，可重复，每项计一次。不用于历史补记或仅阅读审计。',
