@@ -1,4 +1,4 @@
-# M1/M2 development package
+# M1–M3 development package
 
 Version: read plugin.json. This is a development checkpoint, not a public release.
 Requires Node.js 20.18+ on PATH. Runtime JavaScript dependencies are bundled;
@@ -15,7 +15,13 @@ process alone is not proof of a successful handshake.
 In a Codex environment with local plugin loading, select this directory using
 the supported local-plugin workflow. Confirm the global Skill Manager entry
 opens, the panel loads, and errors are understandable. If local loading is not
-available, record that limitation; marketplace installation is scheduled for M3.
+available, record that limitation. M3 provides a companion Skill and a buildable
+development marketplace. The current package embeds the exact dashboard HTML
+in its server bundle and includes readable THIRD_PARTY_NOTICES.md. This layout
+passed Windows marketplace installation and the full 11-check lifecycle on the
+tested host; the earlier loose-HTML layout failed cache activation. See
+docs/MARKETPLACE.md in the source repository or the marketplace artifact's
+top-level README. Installing the Skill alone does not install MCP.
 
 M2 stores records outside the package under CODEX_HOME/skill-manager/data-v1
 (default: ~/.codex/skill-manager/data-v1). CODEX_SKILL_MANAGER_DATA_DIR may

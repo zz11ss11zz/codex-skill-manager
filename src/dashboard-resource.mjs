@@ -4,6 +4,7 @@ import { mkdir, readFile, rename, writeFile, unlink } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { ResourceTemplate } from '@modelcontextprotocol/sdk/server/mcp.js';
+import { bundledDashboard } from './bundled-dashboard.mjs';
 
 export const dashboardFile = fileURLToPath(new URL('../dist/dashboard.html', import.meta.url));
 export const dashboardRevision = html => createHash('sha256').update(html).digest('hex').slice(0, 16);
@@ -38,8 +39,8 @@ export async function publishDashboard(html, file = dashboardFile) {
   return resourceUri(dashboardRevision(html));
 }
 
-export function registerDashboard(server, file = dashboardFile) {
-  const html = readFileSync(file, 'utf8');
+export function registerDashboard(server, file = dashboardFile, embedded = bundledDashboard) {
+  const html = embedded ?? readFileSync(file, 'utf8');
   const uri = resourceUri(dashboardRevision(html));
   server.registerResource('dashboard', uri, { mimeType }, async () => ({
     contents: [{ uri, mimeType, text: html }],
@@ -48,9 +49,12 @@ export function registerDashboard(server, file = dashboardFile) {
     'ui://codex-skill-manager/dashboard-{revision}.html', { list: undefined },
   ), { mimeType }, async (requestedUri, { revision }) => {
     if (typeof revision !== 'string' || !/^[a-f0-9]{16}$/.test(revision)) throw new Error('Invalid dashboard revision');
-    const text = await readFile(path.join(path.dirname(file), 'revisions', `${revision}.html`), 'utf8');
+    // Standalone packages carry one immutable revision in the JS bundle.
+    // Never answer an old/unknown URI with a different revision's content.
+    const text = embedded ?? await readFile(path.join(path.dirname(file), 'revisions', `${revision}.html`), 'utf8');
     if (dashboardRevision(text) !== revision) throw new Error('Dashboard revision content mismatch');
     return { contents: [{ uri: requestedUri.href, mimeType, text }] };
   });
   return uri;
 }
+
